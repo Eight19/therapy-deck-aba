@@ -10,8 +10,7 @@
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════
-   LIVING LEARNING WORLD — Global Styles
-   To change font: replace 'Nunito' everywhere
+   LIVING LEARNING WORLD — v3.0
    ═══════════════════════════════════════════ */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
 html,body{height:100%;overflow:hidden;}
@@ -24,42 +23,34 @@ textarea,input,select{font-family:'Nunito',sans-serif;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 @keyframes slideUp{from{opacity:0;transform:translateY(28px);}to{opacity:1;transform:translateY(0);}}
 @keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-9px);}}
-@keyframes celebrate{0%{transform:scale(1) rotate(0deg);}25%{transform:scale(1.25) rotate(-6deg);}50%{transform:scale(1.25) rotate(6deg);}75%{transform:scale(1.1) rotate(-3deg);}100%{transform:scale(1) rotate(0deg);}}
+@keyframes celebrate{0%{transform:scale(1)rotate(0deg);}25%{transform:scale(1.25)rotate(-6deg);}50%{transform:scale(1.25)rotate(6deg);}75%{transform:scale(1.1)rotate(-3deg);}100%{transform:scale(1)rotate(0deg);}}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.7;}}
-@keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.2);}100%{transform:scale(1);}}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
 // ═══════════════════════════════════════════════════════════════
-//  LIVING LEARNING WORLD  ·  ABA App  ·  v2.0
+//  LIVING LEARNING WORLD · ABA Therapy Tool · v3.0
 //  ─────────────────────────────────────────────────────────────
-//  VS CODE EDITING GUIDE:
+//  NOT FOR STORING CLIENT DATA — Therapist-managed tool only
+//  ─────────────────────────────────────────────────────────────
 //
-//  📸 UPDATE IMAGES → Search "PX(" to find image references.
-//     Replace the number with any Pexels photo ID.
-//     Get IDs at pexels.com — ID is the number in the URL.
-//     Example: pexels.com/photo/123456 → PX(123456)
-//
-//  📚 ADD VOCABULARY → Find "CATS=" then the category,
-//     add an object to its items array:
-//     { id:'myitem', label:'My Word', img:PX(123456) }
-//
-//  🔢 CHANGE NUMBER RANGE → Edit NUM_MAX below
-//
-//  🎨 CHANGE COLORS → Edit the C={} theme object
-//
-//  🔍 FIND SECTIONS → Ctrl+F for section names:
-//     "CATEGORY DATA", "FLASHCARD", "GRID VIEW",
-//     "GAME MODE", "FIRST THEN", "DASHBOARD", etc.
+//  VS CODE QUICK GUIDE:
+//  📸 Fix a photo  → Ctrl+F "PX(" → change the number to any
+//                    Pexels photo ID (pexels.com → click photo
+//                    → grab number from URL)
+//  📚 Add a word   → Ctrl+F the category name → add item to
+//                    its items[] array
+//  🎨 Change color → Ctrl+F "C={" → edit any hex value
+//  🔢 More numbers → Change NUM_MAX below (currently 100)
 // ═══════════════════════════════════════════════════════════════
 
-const {useState,useEffect,useRef,useMemo}=React;
+const {useState,useEffect,useRef,useMemo,useCallback}=React;
 
-// ─── NUMBER RANGE ────────────────────────────────────────────
-// Change to 100 to include numbers 1-100
-const NUM_MAX = 20;
+// ─── CONFIG ──────────────────────────────────────────────────
+const NUM_MAX = 100; // Numbers 1 through this value
+const LS_KEY  = 'llw_uploads_v3'; // localStorage key for saved photos
 
 // ─── RESPONSIVE HOOK ─────────────────────────────────────────
 function useW(){
@@ -68,49 +59,44 @@ function useW(){
   return w;
 }
 
-// ─── THEME COLORS ────────────────────────────────────────────
-// Edit any hex value to change colors throughout the app
+// ─── THEME ───────────────────────────────────────────────────
 const C={
-  bg:'#FFF6EE', card:'#FFFFFF',
-  green:'#5BB894', greenL:'#E8F7F2',
-  coral:'#F4845F', coralL:'#FEF0EC',
-  purple:'#9B8EC4', purpleL:'#F0EDF9',
-  yellow:'#F9C74F', yellowL:'#FEF9E7',
-  blue:'#5DADE2', blueL:'#EBF5FB',
-  pink:'#F06292', pinkL:'#FCE4EC',
-  teal:'#26A69A', tealL:'#E0F2F1',
-  orange:'#FF8A65', orangeL:'#FBE9E7',
-  text:'#2C1810', soft:'#7A5C52', border:'#EDE0D8',
+  bg:'#FFF6EE',card:'#FFFFFF',
+  green:'#5BB894',greenL:'#E8F7F2',
+  coral:'#F4845F',coralL:'#FEF0EC',
+  purple:'#9B8EC4',purpleL:'#F0EDF9',
+  yellow:'#F9C74F',yellowL:'#FEF9E7',
+  blue:'#5DADE2',blueL:'#EBF5FB',
+  pink:'#F06292',pinkL:'#FCE4EC',
+  teal:'#26A69A',tealL:'#E0F2F1',
+  orange:'#FF8A65',orangeL:'#FBE9E7',
+  text:'#2C1810',soft:'#7A5C52',border:'#EDE0D8',
 };
 
-// ─── VOICE ENGINE ────────────────────────────────────────────
-// Auto-selects the smoothest available voice
-// Priority: Google US English → Samantha (Apple) → best en-US
+// ─── VOICE ───────────────────────────────────────────────────
 let _voice=null;
 function _loadVoice(){
-  const vs=window.speechSynthesis.getVoices();
-  if(!vs.length)return;
+  const vs=window.speechSynthesis.getVoices();if(!vs.length)return;
   const pref=['Google US English','Samantha','Alex','Karen','Daniel'];
   for(const n of pref){const v=vs.find(x=>x.name===n);if(v){_voice=v;return;}}
   _voice=vs.find(v=>v.lang==='en-US')||vs.find(v=>v.lang.startsWith('en'))||vs[0]||null;
 }
 if('speechSynthesis' in window){window.speechSynthesis.onvoiceschanged=_loadVoice;_loadVoice();}
-
-function speak(text){
+function speak(t){
   if(!('speechSynthesis' in window))return;
   window.speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(text);
-  if(_voice)u.voice=_voice;
-  u.rate=0.82; u.pitch=1.0; u.volume=1;
+  const u=new SpeechSynthesisUtterance(t);
+  if(_voice)u.voice=_voice;u.rate=0.82;u.pitch=1;u.volume=1;
   window.speechSynthesis.speak(u);
 }
 
 // ─── IMAGE HELPERS ───────────────────────────────────────────
-// PX(id) builds a Pexels CDN URL — free, no API key needed
-// Replace id numbers with any Pexels photo ID
+// Replace the number with ANY Pexels photo ID
+// Get IDs at pexels.com — the number in the URL is the ID
+// Example: pexels.com/photo/dog-sitting-1805164 → PX(1805164)
 const PX=id=>`https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop`;
 
-// ─── SHAPE RENDERER (SVG, no external images) ────────────────
+// ─── SHAPE SVG ───────────────────────────────────────────────
 function ShapeViz({type,size,color}){
   const s=size||120;const c=color||C.blue;
   const shapes={
@@ -130,23 +116,19 @@ function ShapeViz({type,size,color}){
     cross:<path d="M36,4 L64,4 L64,36 L96,36 L96,64 L64,64 L64,96 L36,96 L36,64 L4,64 L4,36 L36,36Z" fill={c}/>,
     arrow:<polygon points="5,35 58,35 58,14 96,50 58,86 58,65 5,65" fill={c}/>,
   };
-  return(
-    <svg width={s} height={s} viewBox="0 0 100 100" style={{display:'block'}}>
-      {shapes[type]||shapes.circle}
-    </svg>
-  );
+  return <svg width={s} height={s} viewBox="0 0 100 100" style={{display:'block'}}>{shapes[type]||shapes.circle}</svg>;
 }
 
-// ─── NUMBER RENDERER (numeral + dot grid) ────────────────────
+// ─── NUMBER VIZ ──────────────────────────────────────────────
 function NumberViz({n,size}){
   const sz=size||120;
   const showDots=Math.min(n,20);
   const rows=[];
   for(let i=0;i<showDots;i+=10)rows.push(Math.min(10,showDots-i));
-  const dotSz=Math.max(8,Math.floor(sz*0.085));
+  const dotSz=Math.max(6,Math.floor(sz*0.075));
   return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,padding:6}}>
-      <div style={{fontSize:sz*.48,fontWeight:900,color:C.blue,lineHeight:1}}>{n}</div>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,padding:4}}>
+      <div style={{fontSize:sz*.44,fontWeight:900,color:C.blue,lineHeight:1}}>{n}</div>
       <div style={{display:'flex',flexDirection:'column',gap:3}}>
         {rows.map((rc,ri)=>(
           <div key={ri} style={{display:'flex',gap:3,justifyContent:'center'}}>
@@ -155,80 +137,58 @@ function NumberViz({n,size}){
             ))}
           </div>
         ))}
-        {n>20&&<p style={{fontSize:10,color:C.soft,textAlign:'center',fontWeight:600}}>+{n-20} more</p>}
+        {n>20&&<p style={{fontSize:10,color:C.soft,textAlign:'center',fontWeight:600}}>({n} total)</p>}
       </div>
     </div>
   );
 }
 
-// ─── SYLLABLE RENDERER (color-coded parts) ───────────────────
+// ─── SYLLABLE VIZ ────────────────────────────────────────────
 function SyllableViz({parts}){
   const cols=['#F4845F','#5BB894','#9B8EC4','#5DADE2','#F9C74F'];
   return(
     <div style={{display:'flex',gap:4,alignItems:'center',flexWrap:'wrap',justifyContent:'center'}}>
       {parts.map((p,i)=>(
         <React.Fragment key={i}>
-          <div style={{background:`${cols[i%cols.length]}22`,borderRadius:10,padding:'6px 12px',
-            fontWeight:900,fontSize:22,color:cols[i%cols.length],
-            border:`2px solid ${cols[i%cols.length]}40`}}>{p}</div>
-          {i<parts.length-1&&<span style={{color:C.soft,fontWeight:700,fontSize:18}}>·</span>}
+          <div style={{background:`${cols[i%cols.length]}22`,borderRadius:10,padding:'5px 11px',fontWeight:900,fontSize:20,color:cols[i%cols.length],border:`2px solid ${cols[i%cols.length]}40`}}>{p}</div>
+          {i<parts.length-1&&<span style={{color:C.soft,fontWeight:700,fontSize:16}}>·</span>}
         </React.Fragment>
       ))}
     </div>
   );
 }
 
-// ─── UNIVERSAL IMAGE CARD ─────────────────────────────────────
-// Handles all visual types: photos, colors, shapes, numbers, words, syllables
+// ─── UNIVERSAL IMAGE CARD ────────────────────────────────────
 function ImgCard({item,size,color}){
   const [err,setErr]=useState(false);
-  const sz=size||120;
-  const col=color||C.blue;
-
-  if(item.numVal!=null) return <NumberViz n={item.numVal} size={sz}/>;
-  if(item.colorHex) return(
-    <div style={{width:sz,height:sz,borderRadius:18,background:item.colorHex,
-      border:'4px solid rgba(0,0,0,.1)',flexShrink:0}}/>
-  );
-  if(item.shapeType) return(
-    <div style={{width:sz,height:sz,display:'flex',alignItems:'center',justifyContent:'center'}}>
-      <ShapeViz type={item.shapeType} size={sz} color={col}/>
-    </div>
-  );
-  if(item.syllables) return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:8}}>
-      {item.img&&!err&&<img src={item.img} alt={item.label} onError={()=>setErr(true)}
-        style={{width:sz*.7,height:sz*.7,objectFit:'cover',borderRadius:14}}/>}
+  const sz=size||120;const col=color||C.blue;
+  if(item.numVal!=null)return <NumberViz n={item.numVal} size={sz}/>;
+  if(item.colorHex)return <div style={{width:sz,height:sz,borderRadius:18,background:item.colorHex,border:'4px solid rgba(0,0,0,.1)',flexShrink:0}}/>;
+  if(item.shapeType)return <div style={{width:sz,height:sz,display:'flex',alignItems:'center',justifyContent:'center'}}><ShapeViz type={item.shapeType} size={sz} color={col}/></div>;
+  if(item.syllables)return(
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:6}}>
+      {item.img&&!err&&<img src={item.img} alt={item.label} onError={()=>setErr(true)} style={{width:sz*.68,height:sz*.68,objectFit:'cover',borderRadius:14}}/>}
       <SyllableViz parts={item.syllables}/>
     </div>
   );
-  if(item.isWord) return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+  if(item.isWord)return(
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:7}}>
       {item.img&&!err?(
-        <img src={item.img} alt={item.label} onError={()=>setErr(true)}
-          style={{width:sz*.75,height:sz*.65,objectFit:'cover',borderRadius:14}}/>
+        <img src={item.img} alt={item.label} onError={()=>setErr(true)} style={{width:sz*.75,height:sz*.62,objectFit:'cover',borderRadius:14}}/>
       ):(
-        <div style={{width:sz*.75,height:sz*.65,borderRadius:14,background:`${col}12`,
-          display:'flex',alignItems:'center',justifyContent:'center',border:`2px dashed ${col}30`}}>
-          <span style={{fontSize:sz*.22,color:col,opacity:.35}}>📝</span>
+        <div style={{width:sz*.75,height:sz*.62,borderRadius:14,background:`${col}10`,display:'flex',alignItems:'center',justifyContent:'center',border:`2px dashed ${col}28`}}>
+          <span style={{fontSize:sz*.2,color:col,opacity:.3}}>📝</span>
         </div>
       )}
-      <div style={{background:`${col}14`,borderRadius:10,padding:'5px 16px',
-        fontWeight:900,fontSize:Math.max(16,sz*.18),color:col,
-        border:`2px solid ${col}22`,letterSpacing:1}}>{item.label}</div>
+      <div style={{background:`${col}13`,borderRadius:10,padding:'4px 14px',fontWeight:900,fontSize:Math.max(15,sz*.17),color:col,border:`2px solid ${col}20`,letterSpacing:1}}>{item.label}</div>
     </div>
   );
-  if(item.img&&!err){
-    return(
-      <img src={item.img} alt={item.label} onError={()=>setErr(true)}
-        style={{width:sz,height:sz,objectFit:'cover',borderRadius:18,display:'block',flexShrink:0}}/>
-    );
-  }
+  // Custom uploaded photo (has imgSrc from device)
+  const src=item.imgSrc||item.img;
+  if(src&&!err)return <img src={src} alt={item.label} onError={()=>setErr(true)} style={{width:sz,height:sz,objectFit:'cover',borderRadius:18,display:'block',flexShrink:0}}/>;
+  // Fallback: colored tile with initial
   return(
-    <div style={{width:sz,height:sz,borderRadius:18,background:`${col}16`,
-      display:'flex',alignItems:'center',justifyContent:'center',
-      fontSize:sz*.38,fontWeight:900,color:col,
-      border:`3px solid ${col}22`,flexShrink:0}}>
+    <div style={{width:sz,height:sz,borderRadius:18,background:`${col}15`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:sz*.38,fontWeight:900,color:col,border:`3px solid ${col}20`,flexShrink:0}}>
       {item.label.charAt(0).toUpperCase()}
     </div>
   );
@@ -236,312 +196,285 @@ function ImgCard({item,size,color}){
 
 // ═══════════════════════════════════════════════════════════════
 //  CATEGORY DATA
+//  ─────────────────────────────────────────────────────────────
+//  📸 HOW TO FIX A WRONG IMAGE:
+//  1. Go to pexels.com and search for what you need
+//  2. Click the photo — copy the number from the URL
+//  3. Replace the number inside PX( ) below
 // ═══════════════════════════════════════════════════════════════
-
 const CATS=[
 
-  // ─── COLORS ────────────────────────────────────────────────
-  // colorHex renders a CSS color swatch (no image needed)
-  {id:'colors',label:'Colors',emoji:'🎨',color:C.coral,
-    items:[
-      {id:'red',    label:'Red',    colorHex:'#E53935'},
-      {id:'orange', label:'Orange', colorHex:'#FB8C00'},
-      {id:'yellow', label:'Yellow', colorHex:'#FDD835'},
-      {id:'green',  label:'Green',  colorHex:'#43A047'},
-      {id:'blue',   label:'Blue',   colorHex:'#1E88E5'},
-      {id:'purple', label:'Purple', colorHex:'#8E24AA'},
-      {id:'pink',   label:'Pink',   colorHex:'#E91E63'},
-      {id:'brown',  label:'Brown',  colorHex:'#795548'},
-      {id:'black',  label:'Black',  colorHex:'#212121'},
-      {id:'white',  label:'White',  colorHex:'#F5F5F5'},
-      {id:'gray',   label:'Gray',   colorHex:'#9E9E9E'},
-      {id:'gold',   label:'Gold',   colorHex:'#FFC107'},
-    ]
-  },
+  // ── COLORS (CSS swatches — no images needed) ──────────────
+  {id:'colors',label:'Colors',emoji:'🎨',color:C.coral,items:[
+    {id:'red',    label:'Red',    colorHex:'#E53935'},
+    {id:'orange', label:'Orange', colorHex:'#FB8C00'},
+    {id:'yellow', label:'Yellow', colorHex:'#FDD835'},
+    {id:'green',  label:'Green',  colorHex:'#43A047'},
+    {id:'blue',   label:'Blue',   colorHex:'#1E88E5'},
+    {id:'purple', label:'Purple', colorHex:'#8E24AA'},
+    {id:'pink',   label:'Pink',   colorHex:'#E91E63'},
+    {id:'brown',  label:'Brown',  colorHex:'#795548'},
+    {id:'black',  label:'Black',  colorHex:'#212121'},
+    {id:'white',  label:'White',  colorHex:'#F5F5F5'},
+    {id:'gray',   label:'Gray',   colorHex:'#9E9E9E'},
+    {id:'gold',   label:'Gold',   colorHex:'#FFC107'},
+  ]},
 
-  // ─── NUMBERS ───────────────────────────────────────────────
-  // numVal renders a large numeral + dot grid
+  // ── NUMBERS (numeral + dot grid — no images needed) ───────
   {id:'numbers',label:'Numbers',emoji:'🔢',color:C.blue,
     items:Array.from({length:NUM_MAX},(_,i)=>({id:`n${i+1}`,label:`${i+1}`,numVal:i+1}))
   },
 
-  // ─── SHAPES ────────────────────────────────────────────────
-  // shapeType renders an SVG shape (no image needed)
-  {id:'shapes',label:'Shapes',emoji:'⬡',color:C.purple,
-    items:[
-      {id:'circle',    label:'Circle',    shapeType:'circle'},
-      {id:'square',    label:'Square',    shapeType:'square'},
-      {id:'triangle',  label:'Triangle',  shapeType:'triangle'},
-      {id:'rectangle', label:'Rectangle', shapeType:'rectangle'},
-      {id:'oval',      label:'Oval',      shapeType:'oval'},
-      {id:'diamond',   label:'Diamond',   shapeType:'diamond'},
-      {id:'star',      label:'Star',      shapeType:'star'},
-      {id:'heart',     label:'Heart',     shapeType:'heart'},
-      {id:'pentagon',  label:'Pentagon',  shapeType:'pentagon'},
-      {id:'hexagon',   label:'Hexagon',   shapeType:'hexagon'},
-      {id:'octagon',   label:'Octagon',   shapeType:'octagon'},
-      {id:'trapezoid', label:'Trapezoid', shapeType:'trapezoid'},
-      {id:'crescent',  label:'Crescent',  shapeType:'crescent'},
-      {id:'cross',     label:'Cross',     shapeType:'cross'},
-      {id:'arrow',     label:'Arrow',     shapeType:'arrow'},
-    ]
-  },
+  // ── SHAPES (SVG — no images needed) ───────────────────────
+  {id:'shapes',label:'Shapes',emoji:'⬡',color:C.purple,items:[
+    {id:'circle',    label:'Circle',    shapeType:'circle'},
+    {id:'square',    label:'Square',    shapeType:'square'},
+    {id:'triangle',  label:'Triangle',  shapeType:'triangle'},
+    {id:'rectangle', label:'Rectangle', shapeType:'rectangle'},
+    {id:'oval',      label:'Oval',      shapeType:'oval'},
+    {id:'diamond',   label:'Diamond',   shapeType:'diamond'},
+    {id:'star',      label:'Star',      shapeType:'star'},
+    {id:'heart',     label:'Heart',     shapeType:'heart'},
+    {id:'pentagon',  label:'Pentagon',  shapeType:'pentagon'},
+    {id:'hexagon',   label:'Hexagon',   shapeType:'hexagon'},
+    {id:'octagon',   label:'Octagon',   shapeType:'octagon'},
+    {id:'trapezoid', label:'Trapezoid', shapeType:'trapezoid'},
+    {id:'crescent',  label:'Crescent',  shapeType:'crescent'},
+    {id:'cross',     label:'Cross',     shapeType:'cross'},
+    {id:'arrow',     label:'Arrow',     shapeType:'arrow'},
+  ]},
 
-  // ─── ANIMALS ───────────────────────────────────────────────
-  // Replace PX(id) numbers with any Pexels photo IDs
-  {id:'animals',label:'Animals',emoji:'🐾',color:C.green,
-    items:[
-      // Pets
-      {id:'dog',       label:'Dog',       img:PX(2253275)},
-      {id:'cat',       label:'Cat',       img:PX(45201)},
-      {id:'rabbit',    label:'Rabbit',    img:PX(326012)},
-      {id:'fish',      label:'Fish',      img:PX(461689)},
-      {id:'hamster',   label:'Hamster',   img:PX(4588595)},
-      {id:'guineapig', label:'Guinea Pig',img:PX(1444392)},
-      {id:'parrot',    label:'Parrot',    img:PX(56733)},
-      {id:'turtle',    label:'Turtle',    img:PX(1618606)},
-      // Farm
-      {id:'cow',       label:'Cow',       img:PX(422218)},
-      {id:'pig',       label:'Pig',       img:PX(1300361)},
-      {id:'horse',     label:'Horse',     img:PX(635499)},
-      {id:'sheep',     label:'Sheep',     img:PX(288621)},
-      {id:'chicken',   label:'Chicken',   img:PX(751005)},
-      {id:'duck',      label:'Duck',      img:PX(144240)},
-      {id:'goat',      label:'Goat',      img:PX(2587204)},
-      {id:'rooster',   label:'Rooster',   img:PX(2135012)},
-      // Zoo / Wild
-      {id:'lion',      label:'Lion',      img:PX(247502)},
-      {id:'tiger',     label:'Tiger',     img:PX(1561731)},
-      {id:'elephant',  label:'Elephant',  img:PX(2111337)},
-      {id:'giraffe',   label:'Giraffe',   img:PX(1054655)},
-      {id:'zebra',     label:'Zebra',     img:PX(3396081)},
-      {id:'bear',      label:'Bear',      img:PX(1232557)},
-      {id:'monkey',    label:'Monkey',    img:PX(159529)},
-      {id:'gorilla',   label:'Gorilla',   img:PX(1123771)},
-      {id:'hippo',     label:'Hippo',     img:PX(1670755)},
-      {id:'rhino',     label:'Rhino',     img:PX(34098)},
-      {id:'penguin',   label:'Penguin',   img:PX(86405)},
-      {id:'dolphin',   label:'Dolphin',   img:PX(1564508)},
-      {id:'shark',     label:'Shark',     img:PX(2834649)},
-      {id:'whale',     label:'Whale',     img:PX(3916820)},
-      {id:'crocodile', label:'Crocodile', img:PX(568022)},
-      {id:'kangaroo',  label:'Kangaroo',  img:PX(929782)},
-      {id:'koala',     label:'Koala',     img:PX(1420987)},
-      {id:'panda',     label:'Panda',     img:PX(3785662)},
-      {id:'cheetah',   label:'Cheetah',   img:PX(2558011)},
-      {id:'wolf',      label:'Wolf',      img:PX(1090676)},
-      {id:'fox',       label:'Fox',       img:PX(750807)},
-      {id:'deer',      label:'Deer',      img:PX(1414634)},
-      {id:'camel',     label:'Camel',     img:PX(134392)},
-      {id:'flamingo',  label:'Flamingo',  img:PX(1309919)},
-      {id:'peacock',   label:'Peacock',   img:PX(669986)},
-      {id:'eagle',     label:'Eagle',     img:PX(924824)},
-      {id:'owl',       label:'Owl',       img:PX(133459)},
-      {id:'frog',      label:'Frog',      img:PX(1702624)},
-      {id:'butterfly', label:'Butterfly', img:PX(326055)},
-      {id:'bee',       label:'Bee',       img:PX(56875)},
-    ]
-  },
+  // ── ANIMALS ───────────────────────────────────────────────
+  // 📸 Replace PX(id) numbers if any photo looks wrong
+  {id:'animals',label:'Animals',emoji:'🐾',color:C.green,items:[
+    // Pets
+    {id:'dog',       label:'Dog',        img:PX(1805164)},
+    {id:'cat',       label:'Cat',        img:PX(1543793)},
+    {id:'rabbit',    label:'Rabbit',     img:PX(326012)},
+    {id:'fish',      label:'Fish',       img:PX(325045)},
+    {id:'hamster',   label:'Hamster',    img:PX(162140)},
+    {id:'guineapig', label:'Guinea Pig', img:PX(1444392)},
+    {id:'parrot',    label:'Parrot',     img:PX(3573351)},
+    {id:'turtle',    label:'Turtle',     img:PX(847393)},
+    {id:'snake',     label:'Snake',      img:PX(1181474)},
+    // Farm
+    {id:'cow',       label:'Cow',        img:PX(422218)},
+    {id:'pig',       label:'Pig',        img:PX(1300361)},
+    {id:'horse',     label:'Horse',      img:PX(635499)},
+    {id:'sheep',     label:'Sheep',      img:PX(288621)},
+    {id:'chicken',   label:'Chicken',    img:PX(195414)},
+    {id:'duck',      label:'Duck',       img:PX(144240)},
+    {id:'goat',      label:'Goat',       img:PX(2659360)},
+    {id:'rooster',   label:'Rooster',    img:PX(3962183)},
+    // Zoo / Wild
+    {id:'lion',      label:'Lion',       img:PX(247502)},
+    {id:'tiger',     label:'Tiger',      img:PX(162093)},
+    {id:'elephant',  label:'Elephant',   img:PX(133394)},
+    {id:'giraffe',   label:'Giraffe',    img:PX(1054655)},
+    {id:'zebra',     label:'Zebra',      img:PX(60759)},
+    {id:'bear',      label:'Bear',       img:PX(1466844)},
+    {id:'monkey',    label:'Monkey',     img:PX(975012)},
+    {id:'hippo',     label:'Hippo',      img:PX(1670755)},
+    {id:'rhino',     label:'Rhino',      img:PX(34098)},
+    {id:'penguin',   label:'Penguin',    img:PX(86405)},
+    {id:'dolphin',   label:'Dolphin',    img:PX(1118448)},
+    {id:'shark',     label:'Shark',      img:PX(2834649)},
+    {id:'whale',     label:'Whale',      img:PX(3916820)},
+    {id:'crocodile', label:'Crocodile',  img:PX(1661013)},
+    {id:'kangaroo',  label:'Kangaroo',   img:PX(929782)},
+    {id:'koala',     label:'Koala',      img:PX(1420987)},
+    {id:'panda',     label:'Panda',      img:PX(3536928)},
+    {id:'wolf',      label:'Wolf',       img:PX(1492901)},
+    {id:'fox',       label:'Fox',        img:PX(750807)},
+    {id:'deer',      label:'Deer',       img:PX(1414634)},
+    {id:'camel',     label:'Camel',      img:PX(134392)},
+    {id:'flamingo',  label:'Flamingo',   img:PX(1309919)},
+    {id:'eagle',     label:'Eagle',      img:PX(3826435)},
+    {id:'owl',       label:'Owl',        img:PX(3060797)},
+    {id:'frog',      label:'Frog',       img:PX(37350)},
+    {id:'butterfly', label:'Butterfly',  img:PX(326055)},
+    {id:'bee',       label:'Bee',        img:PX(56875)},
+  ]},
 
-  // ─── FOODS ─────────────────────────────────────────────────
-  {id:'foods',label:'Foods',emoji:'🍎',color:C.yellow,
-    items:[
-      {id:'apple',     label:'Apple',     img:PX(102104)},
-      {id:'banana',    label:'Banana',    img:PX(1093038)},
-      {id:'orange',    label:'Orange',    img:PX(327090)},
-      {id:'grapes',    label:'Grapes',    img:PX(60021)},
-      {id:'strawberry',label:'Strawberry',img:PX(1126728)},
-      {id:'watermelon',label:'Watermelon',img:PX(1294439)},
-      {id:'pizza',     label:'Pizza',     img:PX(825661)},
-      {id:'sandwich',  label:'Sandwich',  img:PX(1603901)},
-      {id:'bread',     label:'Bread',     img:PX(209206)},
-      {id:'carrot',    label:'Carrot',    img:PX(143133)},
-      {id:'broccoli',  label:'Broccoli',  img:PX(47347)},
-      {id:'corn',      label:'Corn',      img:PX(547263)},
-      {id:'milk',      label:'Milk',      img:PX(236010)},
-      {id:'icecream',  label:'Ice Cream', img:PX(1352208)},
-      {id:'cake',      label:'Cake',      img:PX(291528)},
-      {id:'cookie',    label:'Cookie',    img:PX(230325)},
-      {id:'egg',       label:'Egg',       img:PX(162712)},
-      {id:'rice',      label:'Rice',      img:PX(723198)},
-      {id:'pasta',     label:'Pasta',     img:PX(1279330)},
-      {id:'cheese',    label:'Cheese',    img:PX(773253)},
-      {id:'juice',     label:'Juice',     img:PX(158053)},
-      {id:'water',     label:'Water',     img:PX(1548688)},
-    ]
-  },
+  // ── FOODS ─────────────────────────────────────────────────
+  {id:'foods',label:'Foods',emoji:'🍎',color:C.yellow,items:[
+    {id:'apple',      label:'Apple',      img:PX(102104)},
+    {id:'banana',     label:'Banana',     img:PX(1093038)},
+    {id:'orange',     label:'Orange',     img:PX(327090)},
+    {id:'grapes',     label:'Grapes',     img:PX(60021)},
+    {id:'strawberry', label:'Strawberry', img:PX(89778)},
+    {id:'watermelon', label:'Watermelon', img:PX(1294439)},
+    {id:'pizza',      label:'Pizza',      img:PX(825661)},
+    {id:'sandwich',   label:'Sandwich',   img:PX(1603901)},
+    {id:'bread',      label:'Bread',      img:PX(1775043)},
+    {id:'carrot',     label:'Carrot',     img:PX(143133)},
+    {id:'broccoli',   label:'Broccoli',   img:PX(1300972)},
+    {id:'corn',       label:'Corn',       img:PX(547263)},
+    {id:'milk',       label:'Milk',       img:PX(248412)},
+    {id:'icecream',   label:'Ice Cream',  img:PX(1352208)},
+    {id:'cake',       label:'Cake',       img:PX(291528)},
+    {id:'cookie',     label:'Cookie',     img:PX(890515)},
+    {id:'egg',        label:'Egg',        img:PX(162712)},
+    {id:'rice',       label:'Rice',       img:PX(723198)},
+    {id:'pasta',      label:'Pasta',      img:PX(1279330)},
+    {id:'cheese',     label:'Cheese',     img:PX(773253)},
+    {id:'juice',      label:'Juice',      img:PX(96974)},
+    {id:'water',      label:'Water',      img:PX(416528)},
+  ]},
 
-  // ─── OBJECTS ───────────────────────────────────────────────
-  {id:'objects',label:'Objects',emoji:'🧸',color:C.pink,
-    items:[
-      {id:'ball',      label:'Ball',      img:PX(168948)},
-      {id:'book',      label:'Book',      img:PX(159866)},
-      {id:'cup',       label:'Cup',       img:PX(312418)},
-      {id:'chair',     label:'Chair',     img:PX(116910)},
-      {id:'car',       label:'Car',       img:PX(116675)},
-      {id:'phone',     label:'Phone',     img:PX(47261)},
-      {id:'pencil',    label:'Pencil',    img:PX(159751)},
-      {id:'scissors',  label:'Scissors',  img:PX(1339844)},
-      {id:'backpack',  label:'Backpack',  img:PX(1546003)},
-      {id:'clock',     label:'Clock',     img:PX(280277)},
-      {id:'umbrella',  label:'Umbrella',  img:PX(1059122)},
-      {id:'key',       label:'Key',       img:PX(461593)},
-      {id:'computer',  label:'Computer',  img:PX(1029757)},
-      {id:'bicycle',   label:'Bicycle',   img:PX(276517)},
-      {id:'bed',       label:'Bed',       img:PX(1034584)},
-      {id:'table',     label:'Table',     img:PX(1571463)},
-      {id:'door',      label:'Door',      img:PX(277559)},
-      {id:'window',    label:'Window',    img:PX(534220)},
-      {id:'teddybear', label:'Teddy Bear',img:PX(826735)},
-      {id:'blocks',    label:'Blocks',    img:PX(3661261)},
-    ]
-  },
+  // ── OBJECTS ───────────────────────────────────────────────
+  {id:'objects',label:'Objects',emoji:'🧸',color:C.pink,items:[
+    {id:'ball',      label:'Ball',       img:PX(159207)},
+    {id:'book',      label:'Book',       img:PX(159866)},
+    {id:'cup',       label:'Cup',        img:PX(1187317)},
+    {id:'chair',     label:'Chair',      img:PX(1350789)},
+    {id:'car',       label:'Car',        img:PX(170811)},
+    {id:'phone',     label:'Phone',      img:PX(607812)},
+    {id:'pencil',    label:'Pencil',     img:PX(159751)},
+    {id:'scissors',  label:'Scissors',   img:PX(3586966)},
+    {id:'backpack',  label:'Backpack',   img:PX(1546003)},
+    {id:'clock',     label:'Clock',      img:PX(1095601)},
+    {id:'umbrella',  label:'Umbrella',   img:PX(2448749)},
+    {id:'key',       label:'Key',        img:PX(461593)},
+    {id:'computer',  label:'Computer',   img:PX(1029757)},
+    {id:'bicycle',   label:'Bicycle',    img:PX(276517)},
+    {id:'bed',       label:'Bed',        img:PX(1034584)},
+    {id:'table',     label:'Table',      img:PX(1571463)},
+    {id:'door',      label:'Door',       img:PX(277559)},
+    {id:'window',    label:'Window',     img:PX(1732414)},
+    {id:'teddybear', label:'Teddy Bear', img:PX(3933250)},
+    {id:'blocks',    label:'Blocks',     img:PX(3661261)},
+  ]},
 
-  // ─── BODY PARTS ────────────────────────────────────────────
-  {id:'body',label:'Body Parts',emoji:'🫁',color:C.blue,
-    items:[
-      {id:'eyes',    label:'Eyes',    img:PX(2663853)},
-      {id:'ears',    label:'Ears',    img:PX(3769023)},
-      {id:'nose',    label:'Nose',    img:PX(3807528)},
-      {id:'mouth',   label:'Mouth',   img:PX(4144039)},
-      {id:'hair',    label:'Hair',    img:PX(1126993)},
-      {id:'hands',   label:'Hands',   img:PX(459971)},
-      {id:'feet',    label:'Feet',    img:PX(2310786)},
-      {id:'teeth',   label:'Teeth',   img:PX(191622)},
-      {id:'arms',    label:'Arms',    img:PX(1547248)},
-      {id:'belly',   label:'Belly',   img:PX(3756854)},
-      {id:'back',    label:'Back',    img:PX(1115280)},
-      {id:'fingers', label:'Fingers', img:PX(1170979)},
-    ]
-  },
+  // ── BODY PARTS ────────────────────────────────────────────
+  {id:'body',label:'Body Parts',emoji:'🫁',color:C.blue,items:[
+    {id:'eyes',    label:'Eyes',    img:PX(2868081)},
+    {id:'ears',    label:'Ears',    img:PX(3628622)},
+    {id:'nose',    label:'Nose',    img:PX(2269872)},
+    {id:'mouth',   label:'Mouth',   img:PX(3762800)},
+    {id:'hair',    label:'Hair',    img:PX(1370750)},
+    {id:'hands',   label:'Hands',   img:PX(1059120)},
+    {id:'feet',    label:'Feet',    img:PX(1300510)},
+    {id:'teeth',   label:'Teeth',   img:PX(3762453)},
+    {id:'arms',    label:'Arms',    img:PX(1547248)},
+    {id:'belly',   label:'Belly',   img:PX(35537)},
+    {id:'fingers', label:'Fingers', img:PX(1170979)},
+    {id:'knee',    label:'Knee',    img:PX(4753793)},
+  ]},
 
-  // ─── CLOTHES ───────────────────────────────────────────────
-  {id:'clothes',label:'Clothes',emoji:'👕',color:C.teal,
-    items:[
-      {id:'shirt',   label:'Shirt',   img:PX(1020370)},
-      {id:'pants',   label:'Pants',   img:PX(1082526)},
-      {id:'dress',   label:'Dress',   img:PX(1762851)},
-      {id:'shoes',   label:'Shoes',   img:PX(2205974)},
-      {id:'socks',   label:'Socks',   img:PX(3395305)},
-      {id:'hat',     label:'Hat',     img:PX(1124466)},
-      {id:'jacket',  label:'Jacket',  img:PX(2122349)},
-      {id:'sweater', label:'Sweater', img:PX(3755832)},
-      {id:'skirt',   label:'Skirt',   img:PX(2148197)},
-      {id:'shorts',  label:'Shorts',  img:PX(3768913)},
-      {id:'boots',   label:'Boots',   img:PX(3662124)},
-      {id:'scarf',   label:'Scarf',   img:PX(1078012)},
-      {id:'gloves',  label:'Gloves',  img:PX(3651581)},
-      {id:'pajamas', label:'Pajamas', img:PX(4586555)},
-      {id:'tshirt',  label:'T-Shirt', img:PX(428340)},
-    ]
-  },
+  // ── CLOTHES ───────────────────────────────────────────────
+  {id:'clothes',label:'Clothes',emoji:'👕',color:C.teal,items:[
+    {id:'shirt',   label:'Shirt',   img:PX(1020370)},
+    {id:'pants',   label:'Pants',   img:PX(1082526)},
+    {id:'dress',   label:'Dress',   img:PX(1462637)},
+    {id:'shoes',   label:'Shoes',   img:PX(2529148)},
+    {id:'socks',   label:'Socks',   img:PX(3616228)},
+    {id:'hat',     label:'Hat',     img:PX(1124466)},
+    {id:'jacket',  label:'Jacket',  img:PX(1124468)},
+    {id:'sweater', label:'Sweater', img:PX(3755832)},
+    {id:'skirt',   label:'Skirt',   img:PX(1536619)},
+    {id:'shorts',  label:'Shorts',  img:PX(1598507)},
+    {id:'boots',   label:'Boots',   img:PX(1032110)},
+    {id:'scarf',   label:'Scarf',   img:PX(3622614)},
+    {id:'gloves',  label:'Gloves',  img:PX(3651581)},
+    {id:'pajamas', label:'Pajamas', img:PX(3807571)},
+    {id:'tshirt',  label:'T-Shirt', img:PX(428340)},
+  ]},
 
-  // ─── SIGHT WORDS ───────────────────────────────────────────
-  // isWord: renders bold text + optional photo for concrete words
-  {id:'sightwords',label:'Sight Words',emoji:'📖',color:C.orange,
-    items:[
-      // Concrete nouns — show image + word
-      {id:'w_dog',   label:'dog',   isWord:true,img:PX(2253275)},
-      {id:'w_cat',   label:'cat',   isWord:true,img:PX(45201)},
-      {id:'w_ball',  label:'ball',  isWord:true,img:PX(168948)},
-      {id:'w_book',  label:'book',  isWord:true,img:PX(159866)},
-      {id:'w_car',   label:'car',   isWord:true,img:PX(116675)},
-      {id:'w_house', label:'house', isWord:true,img:PX(1396132)},
-      {id:'w_tree',  label:'tree',  isWord:true,img:PX(1366909)},
-      {id:'w_bird',  label:'bird',  isWord:true,img:PX(56733)},
-      {id:'w_fish',  label:'fish',  isWord:true,img:PX(461689)},
-      {id:'w_sun',   label:'sun',   isWord:true,img:PX(1391498)},
-      {id:'w_moon',  label:'moon',  isWord:true,img:PX(1127113)},
-      {id:'w_water', label:'water', isWord:true,img:PX(1548688)},
-      {id:'w_bed',   label:'bed',   isWord:true,img:PX(1034584)},
-      {id:'w_cup',   label:'cup',   isWord:true,img:PX(312418)},
-      {id:'w_apple', label:'apple', isWord:true,img:PX(102104)},
-      // Abstract / function words — show word only
-      {id:'w_the',    label:'the',    isWord:true},
-      {id:'w_a',      label:'a',      isWord:true},
-      {id:'w_and',    label:'and',    isWord:true},
-      {id:'w_is',     label:'is',     isWord:true},
-      {id:'w_it',     label:'it',     isWord:true},
-      {id:'w_in',     label:'in',     isWord:true},
-      {id:'w_he',     label:'he',     isWord:true},
-      {id:'w_she',    label:'she',    isWord:true},
-      {id:'w_we',     label:'we',     isWord:true},
-      {id:'w_they',   label:'they',   isWord:true},
-      {id:'w_I',      label:'I',      isWord:true},
-      {id:'w_you',    label:'you',    isWord:true},
-      {id:'w_to',     label:'to',     isWord:true},
-      {id:'w_go',     label:'go',     isWord:true},
-      {id:'w_can',    label:'can',    isWord:true},
-      {id:'w_see',    label:'see',    isWord:true},
-      {id:'w_run',    label:'run',    isWord:true},
-      {id:'w_jump',   label:'jump',   isWord:true},
-      {id:'w_play',   label:'play',   isWord:true},
-      {id:'w_eat',    label:'eat',    isWord:true},
-      {id:'w_big',    label:'big',    isWord:true},
-      {id:'w_little', label:'little', isWord:true},
-      {id:'w_up',     label:'up',     isWord:true},
-      {id:'w_down',   label:'down',   isWord:true},
-      {id:'w_yes',    label:'yes',    isWord:true},
-      {id:'w_no',     label:'no',     isWord:true},
-      {id:'w_my',     label:'my',     isWord:true},
-      {id:'w_me',     label:'me',     isWord:true},
-      {id:'w_like',   label:'like',   isWord:true},
-      {id:'w_want',   label:'want',   isWord:true},
-      {id:'w_help',   label:'help',   isWord:true},
-      {id:'w_more',   label:'more',   isWord:true},
-      {id:'w_not',    label:'not',    isWord:true},
-      {id:'w_said',   label:'said',   isWord:true},
-      {id:'w_was',    label:'was',    isWord:true},
-      {id:'w_with',   label:'with',   isWord:true},
-      {id:'w_will',   label:'will',   isWord:true},
-    ]
-  },
+  // ── SIGHT WORDS ───────────────────────────────────────────
+  {id:'sightwords',label:'Sight Words',emoji:'📖',color:C.orange,items:[
+    // Concrete — image + word
+    {id:'w_dog',   label:'dog',   isWord:true,img:PX(1805164)},
+    {id:'w_cat',   label:'cat',   isWord:true,img:PX(1543793)},
+    {id:'w_ball',  label:'ball',  isWord:true,img:PX(159207)},
+    {id:'w_book',  label:'book',  isWord:true,img:PX(159866)},
+    {id:'w_car',   label:'car',   isWord:true,img:PX(170811)},
+    {id:'w_house', label:'house', isWord:true,img:PX(1396132)},
+    {id:'w_tree',  label:'tree',  isWord:true,img:PX(1366909)},
+    {id:'w_bird',  label:'bird',  isWord:true,img:PX(1661179)},
+    {id:'w_fish',  label:'fish',  isWord:true,img:PX(325045)},
+    {id:'w_sun',   label:'sun',   isWord:true,img:PX(1603650)},
+    {id:'w_moon',  label:'moon',  isWord:true,img:PX(1127113)},
+    {id:'w_water', label:'water', isWord:true,img:PX(416528)},
+    {id:'w_bed',   label:'bed',   isWord:true,img:PX(1034584)},
+    {id:'w_cup',   label:'cup',   isWord:true,img:PX(1187317)},
+    {id:'w_apple', label:'apple', isWord:true,img:PX(102104)},
+    // Function words — word only
+    {id:'w_the',   label:'the',   isWord:true},
+    {id:'w_a',     label:'a',     isWord:true},
+    {id:'w_and',   label:'and',   isWord:true},
+    {id:'w_is',    label:'is',    isWord:true},
+    {id:'w_it',    label:'it',    isWord:true},
+    {id:'w_he',    label:'he',    isWord:true},
+    {id:'w_she',   label:'she',   isWord:true},
+    {id:'w_we',    label:'we',    isWord:true},
+    {id:'w_I',     label:'I',     isWord:true},
+    {id:'w_you',   label:'you',   isWord:true},
+    {id:'w_to',    label:'to',    isWord:true},
+    {id:'w_go',    label:'go',    isWord:true},
+    {id:'w_can',   label:'can',   isWord:true},
+    {id:'w_see',   label:'see',   isWord:true},
+    {id:'w_run',   label:'run',   isWord:true},
+    {id:'w_jump',  label:'jump',  isWord:true},
+    {id:'w_play',  label:'play',  isWord:true},
+    {id:'w_eat',   label:'eat',   isWord:true},
+    {id:'w_big',   label:'big',   isWord:true},
+    {id:'w_up',    label:'up',    isWord:true},
+    {id:'w_down',  label:'down',  isWord:true},
+    {id:'w_yes',   label:'yes',   isWord:true},
+    {id:'w_no',    label:'no',    isWord:true},
+    {id:'w_my',    label:'my',    isWord:true},
+    {id:'w_like',  label:'like',  isWord:true},
+    {id:'w_want',  label:'want',  isWord:true},
+    {id:'w_help',  label:'help',  isWord:true},
+    {id:'w_more',  label:'more',  isWord:true},
+    {id:'w_not',   label:'not',   isWord:true},
+    {id:'w_said',  label:'said',  isWord:true},
+    {id:'w_with',  label:'with',  isWord:true},
+    {id:'w_will',  label:'will',  isWord:true},
+    {id:'w_was',   label:'was',   isWord:true},
+  ]},
 
-  // ─── PLACES ────────────────────────────────────────────────
-  // youtubeId: paste a YouTube video ID to enable a Watch button
-  {id:'places',label:'Places',emoji:'🗺️',color:C.teal,
-    items:[
-      {id:'home',       label:'Home',          img:PX(1396132),  youtubeId:''},
-      {id:'school',     label:'School',        img:PX(207692),   youtubeId:''},
-      {id:'park',       label:'Park',          img:PX(56759),    youtubeId:''},
-      {id:'store',      label:'Grocery Store', img:PX(3962285),  youtubeId:''},
-      {id:'library',    label:'Library',       img:PX(877041),   youtubeId:''},
-      {id:'hospital',   label:'Hospital',      img:PX(247786),   youtubeId:''},
-      {id:'restaurant', label:'Restaurant',    img:PX(941861),   youtubeId:''},
-      {id:'beach',      label:'Beach',         img:PX(1680777),  youtubeId:''},
-      {id:'playground', label:'Playground',    img:PX(163491),   youtubeId:''},
-      {id:'zoo',        label:'Zoo',           img:PX(3608306),  youtubeId:''},
-      {id:'farm',       label:'Farm',          img:PX(440731),   youtubeId:''},
-      {id:'church',     label:'Church',        img:PX(208701),   youtubeId:''},
-    ]
-  },
+  // ── PLACES ────────────────────────────────────────────────
+  // youtubeId: paste a YouTube video ID to enable Watch button
+  {id:'places',label:'Places',emoji:'🗺️',color:C.teal,items:[
+    {id:'home',       label:'Home',          img:PX(1396132), youtubeId:''},
+    {id:'school',     label:'School',        img:PX(256395),  youtubeId:''},
+    {id:'park',       label:'Park',          img:PX(1144687), youtubeId:''},
+    {id:'store',      label:'Grocery Store', img:PX(3962285), youtubeId:''},
+    {id:'library',    label:'Library',       img:PX(877041),  youtubeId:''},
+    {id:'hospital',   label:'Hospital',      img:PX(668300),  youtubeId:''},
+    {id:'restaurant', label:'Restaurant',    img:PX(941861),  youtubeId:''},
+    {id:'beach',      label:'Beach',         img:PX(1591447), youtubeId:''},
+    {id:'playground', label:'Playground',    img:PX(1148950), youtubeId:''},
+    {id:'zoo',        label:'Zoo',           img:PX(3608306), youtubeId:''},
+    {id:'farm',       label:'Farm',          img:PX(440731),  youtubeId:''},
+    {id:'gym',        label:'Gym',           img:PX(1552249), youtubeId:''},
+  ]},
 
-  // ─── SYLLABLES ─────────────────────────────────────────────
-  // syllables: array of syllable strings, color-coded
-  {id:'syllables',label:'Syllables',emoji:'🎵',color:C.pink,
-    items:[
-      {id:'s_cat',         label:'cat',          syllables:['cat'],              img:PX(45201)},
-      {id:'s_dog',         label:'dog',          syllables:['dog'],              img:PX(2253275)},
-      {id:'s_sun',         label:'sun',          syllables:['sun'],              img:PX(1391498)},
-      {id:'s_happy',       label:'happy',        syllables:['hap','py'],         img:PX(3807709)},
-      {id:'s_baby',        label:'baby',         syllables:['ba','by'],          img:PX(35537)},
-      {id:'s_water',       label:'water',        syllables:['wa','ter'],         img:PX(1548688)},
-      {id:'s_apple',       label:'apple',        syllables:['ap','ple'],         img:PX(102104)},
-      {id:'s_monkey',      label:'monkey',       syllables:['mon','key'],        img:PX(159529)},
-      {id:'s_rabbit',      label:'rabbit',       syllables:['rab','bit'],        img:PX(326012)},
-      {id:'s_butterfly',   label:'butterfly',    syllables:['but','ter','fly'],  img:PX(326055)},
-      {id:'s_elephant',    label:'elephant',     syllables:['el','e','phant'],   img:PX(2111337)},
-      {id:'s_umbrella',    label:'umbrella',     syllables:['um','brel','la'],   img:PX(1059122)},
-      {id:'s_alligator',   label:'alligator',    syllables:['al','li','ga','tor'],img:PX(568022)},
-      {id:'s_watermelon',  label:'watermelon',   syllables:['wa','ter','mel','on'],img:PX(1294439)},
-      {id:'s_caterpillar', label:'caterpillar',  syllables:['cat','er','pil','lar'],img:PX(326055)},
-      {id:'s_hippo',       label:'hippopotamus', syllables:['hip','po','pot','a','mus'],img:PX(1670755)},
-      {id:'s_dinosaur',    label:'dinosaur',     syllables:['di','no','saur']},
-      {id:'s_helicopter',  label:'helicopter',   syllables:['hel','i','cop','ter']},
-      {id:'s_calculator',  label:'calculator',   syllables:['cal','cu','la','tor']},
-      {id:'s_refrigerator',label:'refrigerator', syllables:['re','frig','er','a','tor']},
-    ]
-  },
+  // ── SYLLABLES ─────────────────────────────────────────────
+  {id:'syllables',label:'Syllables',emoji:'🎵',color:C.pink,items:[
+    {id:'s_cat',         label:'cat',          syllables:['cat'],               img:PX(1543793)},
+    {id:'s_dog',         label:'dog',          syllables:['dog'],               img:PX(1805164)},
+    {id:'s_sun',         label:'sun',          syllables:['sun'],               img:PX(1603650)},
+    {id:'s_happy',       label:'happy',        syllables:['hap','py'],          img:PX(3807709)},
+    {id:'s_baby',        label:'baby',         syllables:['ba','by'],           img:PX(35537)},
+    {id:'s_water',       label:'water',        syllables:['wa','ter'],          img:PX(416528)},
+    {id:'s_apple',       label:'apple',        syllables:['ap','ple'],          img:PX(102104)},
+    {id:'s_monkey',      label:'monkey',       syllables:['mon','key'],         img:PX(975012)},
+    {id:'s_rabbit',      label:'rabbit',       syllables:['rab','bit'],         img:PX(326012)},
+    {id:'s_butterfly',   label:'butterfly',    syllables:['but','ter','fly'],   img:PX(326055)},
+    {id:'s_elephant',    label:'elephant',     syllables:['el','e','phant'],    img:PX(133394)},
+    {id:'s_umbrella',    label:'umbrella',     syllables:['um','brel','la'],    img:PX(2448749)},
+    {id:'s_alligator',   label:'alligator',    syllables:['al','li','ga','tor'],img:PX(1661013)},
+    {id:'s_watermelon',  label:'watermelon',   syllables:['wa','ter','mel','on'],img:PX(1294439)},
+    {id:'s_dinosaur',    label:'dinosaur',     syllables:['di','no','saur']},
+    {id:'s_helicopter',  label:'helicopter',   syllables:['hel','i','cop','ter']},
+    {id:'s_calculator',  label:'calculator',   syllables:['cal','cu','la','tor']},
+    {id:'s_hippo',       label:'hippopotamus', syllables:['hip','po','pot','a','mus'],img:PX(1670755)},
+    {id:'s_caterpillar', label:'caterpillar',  syllables:['cat','er','pil','lar'],img:PX(326055)},
+    {id:'s_refrigerator',label:'refrigerator', syllables:['re','frig','er','a','tor']},
+  ]},
 ];
 
 // ─── STATIC DATA ─────────────────────────────────────────────
@@ -551,7 +484,9 @@ const ROLES=[
   {id:'parent', label:'Parent',  sub:'Caregiver',  emoji:'🏠',color:C.coral, light:C.coralL},
   {id:'teacher',label:'Teacher', sub:'Educator',   emoji:'📚',color:C.blue,  light:C.blueL},
 ];
-const ACTS=[
+
+// Default First/Then activities (emoji-based)
+const DEFAULT_ACTS=[
   {id:'work',   label:'Work Time',   emoji:'📚',color:C.blue},
   {id:'play',   label:'Play',        emoji:'🎮',color:C.yellow},
   {id:'snack',  label:'Snack',       emoji:'🍎',color:C.coral},
@@ -564,20 +499,24 @@ const ACTS=[
   {id:'clean',  label:'Clean Up',    emoji:'🧹',color:C.green},
   {id:'wash',   label:'Wash Hands',  emoji:'🤲',color:C.blue},
   {id:'potty',  label:'Potty Break', emoji:'🚽',color:C.coral},
+  {id:'gym',    label:'Gym',         emoji:'🏋️',color:C.orange},
+  {id:'cafe',   label:'Café',        emoji:'☕',color:C.yellow},
+  {id:'session',label:'Session Room',emoji:'🪑',color:C.purple},
+  {id:'therapy',label:'Therapy',     emoji:'💬',color:C.blue},
 ];
+
 const ROOMS=[
-  {id:'kitchen',label:'Kitchen',    emoji:'🍳',color:C.yellow,items:[{id:'fridge',label:'Refrigerator',emoji:'🧊'},{id:'stove',label:'Stove',emoji:'🫕'},{id:'table',label:'Table',emoji:'🪑'},{id:'sink',label:'Sink',emoji:'🚰'},{id:'cup',label:'Cup',emoji:'🥤'},{id:'plate',label:'Plate',emoji:'🍽️'}]},
-  {id:'bedroom',label:'Bedroom',    emoji:'🛏️',color:C.purple,items:[{id:'bed',label:'Bed',emoji:'🛏️'},{id:'pillow',label:'Pillow',emoji:'🪆'},{id:'lamp',label:'Lamp',emoji:'💡'},{id:'closet',label:'Closet',emoji:'🚪'},{id:'blanket',label:'Blanket',emoji:'🛌'},{id:'bk',label:'Book',emoji:'📖'}]},
-  {id:'living', label:'Living Room',emoji:'🛋️',color:C.blue, items:[{id:'sofa',label:'Sofa',emoji:'🛋️'},{id:'tv',label:'Television',emoji:'📺'},{id:'toys',label:'Toys',emoji:'🧸'},{id:'window',label:'Window',emoji:'🪟'},{id:'door',label:'Door',emoji:'🚪'},{id:'plant',label:'Plant',emoji:'🌿'}]},
-  {id:'bathroom',label:'Bathroom',  emoji:'🚿',color:C.green,items:[{id:'toilet',label:'Toilet',emoji:'🚽'},{id:'sink2',label:'Sink',emoji:'🚰'},{id:'towel',label:'Towel',emoji:'🧴'},{id:'soap',label:'Soap',emoji:'🧼'},{id:'toothbrush',label:'Toothbrush',emoji:'🪥'},{id:'bath',label:'Bathtub',emoji:'🛁'}]},
-  {id:'playroom',label:'Play Room', emoji:'🎮',color:C.coral,items:[{id:'blocks',label:'Blocks',emoji:'🧱'},{id:'ball2',label:'Ball',emoji:'⚽'},{id:'puzzle',label:'Puzzle',emoji:'🧩'},{id:'crayons',label:'Crayons',emoji:'🖍️'},{id:'train',label:'Train',emoji:'🚂'},{id:'doll',label:'Doll',emoji:'🪆'}]},
+  {id:'kitchen', label:'Kitchen',    emoji:'🍳',color:C.yellow,items:[{id:'fridge',label:'Refrigerator',emoji:'🧊'},{id:'stove',label:'Stove',emoji:'🫕'},{id:'table',label:'Table',emoji:'🪑'},{id:'sink',label:'Sink',emoji:'🚰'},{id:'cup',label:'Cup',emoji:'🥤'},{id:'plate',label:'Plate',emoji:'🍽️'}]},
+  {id:'bedroom', label:'Bedroom',    emoji:'🛏️',color:C.purple,items:[{id:'bed',label:'Bed',emoji:'🛏️'},{id:'pillow',label:'Pillow',emoji:'🪆'},{id:'lamp',label:'Lamp',emoji:'💡'},{id:'closet',label:'Closet',emoji:'🚪'},{id:'blanket',label:'Blanket',emoji:'🛌'},{id:'bk',label:'Book',emoji:'📖'}]},
+  {id:'living',  label:'Living Room',emoji:'🛋️',color:C.blue, items:[{id:'sofa',label:'Sofa',emoji:'🛋️'},{id:'tv',label:'Television',emoji:'📺'},{id:'toys',label:'Toys',emoji:'🧸'},{id:'window',label:'Window',emoji:'🪟'},{id:'door',label:'Door',emoji:'🚪'},{id:'plant',label:'Plant',emoji:'🌿'}]},
+  {id:'bathroom',label:'Bathroom',   emoji:'🚿',color:C.green,items:[{id:'toilet',label:'Toilet',emoji:'🚽'},{id:'sink2',label:'Sink',emoji:'🚰'},{id:'towel',label:'Towel',emoji:'🧴'},{id:'soap',label:'Soap',emoji:'🧼'},{id:'toothbrush',label:'Toothbrush',emoji:'🪥'},{id:'bath',label:'Bathtub',emoji:'🛁'}]},
+  {id:'playroom',label:'Play Room',  emoji:'🎮',color:C.coral,items:[{id:'blocks',label:'Blocks',emoji:'🧱'},{id:'ball2',label:'Ball',emoji:'⚽'},{id:'puzzle',label:'Puzzle',emoji:'🧩'},{id:'crayons',label:'Crayons',emoji:'🖍️'},{id:'train',label:'Train',emoji:'🚂'},{id:'doll',label:'Doll',emoji:'🪆'}]},
 ];
 
 // ═══════════════════════════════════════════════════════════════
-//  UI COMPONENTS
+//  COMPONENTS
 // ═══════════════════════════════════════════════════════════════
 
-// ─── SHARED HEADER ───────────────────────────────────────────
 function Hdr({title,onBack,color,right}){
   const tb=useW()>=768;
   return(
@@ -589,20 +528,20 @@ function Hdr({title,onBack,color,right}){
   );
 }
 
-// ─── SPLASH SCREEN ───────────────────────────────────────────
+// ─── SPLASH ──────────────────────────────────────────────────
 function Splash({onSelect}){
   const [sel,setSel]=useState(null);const [going,setGoing]=useState(false);
   const tb=useW()>=768;
   function go(){if(!sel)return;setGoing(true);setTimeout(()=>onSelect(sel),450);}
   return(
-    <div style={{height:'100vh',background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:tb?'40px 48px':'24px 20px',gap:tb?36:24}}>
+    <div style={{height:'100vh',background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:tb?'40px 48px':'24px 20px',gap:tb?32:22}}>
       <div style={{textAlign:'center',animation:'slideUp .5s ease'}}>
-        <div style={{fontSize:tb?78:62,marginBottom:10,display:'inline-block',animation:'bounce 2.5s ease infinite'}}>🌍</div>
+        <div style={{fontSize:tb?78:60,marginBottom:10,display:'inline-block',animation:'bounce 2.5s ease infinite'}}>🌍</div>
         <h1 style={{fontSize:tb?46:32,fontWeight:900,color:C.text,lineHeight:1.1}}>Living Learning<br/><span style={{color:C.green}}>World</span></h1>
-        <p style={{fontSize:tb?17:14,color:C.soft,marginTop:9,fontWeight:600}}>ABA support for every environment</p>
+        <p style={{fontSize:tb?16:13,color:C.soft,marginTop:8,fontWeight:600}}>ABA support for every environment</p>
       </div>
       <div style={{width:'100%',maxWidth:tb?660:400}}>
-        <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:13,textAlign:'center',letterSpacing:1.4,textTransform:'uppercase'}}>Who are you today?</p>
+        <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:12,textAlign:'center',letterSpacing:1.4,textTransform:'uppercase'}}>Who are you today?</p>
         <div style={{display:'grid',gridTemplateColumns:tb?'repeat(4,1fr)':'repeat(2,1fr)',gap:tb?14:10}}>
           {ROLES.map((r,i)=>(
             <button key={r.id} onClick={()=>setSel(r)} style={{background:sel?.id===r.id?r.light:C.card,borderRadius:22,padding:tb?'24px 14px':'18px 12px',border:`2.5px solid ${sel?.id===r.id?r.color:C.border}`,display:'flex',flexDirection:'column',alignItems:'center',gap:8,transform:sel?.id===r.id?'scale(1.05)':'scale(1)',transition:'all .2s',cursor:'pointer',animation:`fadeIn .4s ease ${i*.08}s both`,boxShadow:sel?.id===r.id?`0 4px 18px ${r.color}30`:'none'}}>
@@ -622,9 +561,9 @@ function Splash({onSelect}){
 function Dashboard({role,onNav}){
   const tb=useW()>=768;
   const modes=[
-    {id:'learn',    label:'Learn Mode',  sub:'11 categories · Photos · Grid & Flashcard',emoji:'📖',color:C.green, light:C.greenL},
-    {id:'firstthen',label:'First / Then',sub:'Visual schedules & circular timer',         emoji:'📋',color:C.coral, light:C.coralL},
-    {id:'miniworld',label:'Mini World',  sub:'Explore rooms and learn object names',       emoji:'🏠',color:C.purple,light:C.purpleL},
+    {id:'learn',    label:'Learn Mode',  sub:'11 categories · Grid & Flashcard',        emoji:'📖',color:C.green, light:C.greenL},
+    {id:'firstthen',label:'First / Then',sub:'Visual schedules with your own photos',   emoji:'📋',color:C.coral, light:C.coralL},
+    {id:'miniworld',label:'Mini World',  sub:'Explore rooms · Learn object names',      emoji:'🏠',color:C.purple,light:C.purpleL},
   ];
   const tools=[
     {id:'datanotes',label:'Data Notes',emoji:'📊',color:C.blue,  light:C.blueL},
@@ -639,7 +578,7 @@ function Dashboard({role,onNav}){
           <div>
             <h1 style={{fontSize:tb?28:23,fontWeight:900,color:C.text}}>Hello! 👋</h1>
             <div style={{display:'flex',alignItems:'center',gap:6,marginTop:4}}>
-              <span style={{fontSize:tb?16:13}}>{role.emoji}</span>
+              <span style={{fontSize:16}}>{role.emoji}</span>
               <span style={{fontSize:tb?16:13,color:role.color,fontWeight:800}}>{role.label}</span>
             </div>
           </div>
@@ -651,7 +590,7 @@ function Dashboard({role,onNav}){
           <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:12,letterSpacing:1.4,textTransform:'uppercase'}}>Learning Modes</p>
           <div style={{display:'grid',gridTemplateColumns:tb?'repeat(3,1fr)':'1fr',gap:tb?16:12}}>
             {modes.map((m,i)=>(
-              <button key={m.id} onClick={()=>onNav(m.id)} style={{background:m.light,borderRadius:24,padding:tb?'24px 20px':'18px 18px',display:'flex',flexDirection:tb?'column':'row',alignItems:tb?'flex-start':'center',gap:tb?14:16,border:`2px solid ${m.color}28`,textAlign:'left',cursor:'pointer',animation:`slideUp .35s ease ${i*.1}s both`,boxShadow:`0 4px 16px ${m.color}16`}}>
+              <button key={m.id} onClick={()=>onNav(m.id)} style={{background:m.light,borderRadius:24,padding:tb?'24px 20px':'18px 18px',display:'flex',flexDirection:tb?'column':'row',alignItems:tb?'flex-start':'center',gap:tb?14:16,border:`2px solid ${m.color}26`,textAlign:'left',cursor:'pointer',animation:`slideUp .35s ease ${i*.1}s both`,boxShadow:`0 4px 16px ${m.color}14`}}>
                 <div style={{width:tb?66:54,height:tb?66:54,borderRadius:20,background:m.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:tb?30:26,flexShrink:0}}>{m.emoji}</div>
                 <div style={{flex:1}}>
                   <p style={{fontWeight:900,fontSize:tb?20:17,color:C.text,marginBottom:3}}>{m.label}</p>
@@ -666,7 +605,7 @@ function Dashboard({role,onNav}){
           <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:12,letterSpacing:1.4,textTransform:'uppercase'}}>Quick Tools</p>
           <div style={{display:'grid',gridTemplateColumns:tb?'repeat(4,1fr)':'repeat(2,1fr)',gap:tb?14:10}}>
             {tools.map((t,i)=>(
-              <button key={t.id} onClick={()=>onNav(t.id)} style={{background:t.light,borderRadius:20,padding:tb?'20px 14px':'16px 12px',display:'flex',flexDirection:'column',alignItems:'center',gap:8,border:`1.5px solid ${t.color}22`,cursor:'pointer',animation:`fadeIn .3s ease ${i*.07}s both`,boxShadow:`0 3px 10px ${t.color}12`}}>
+              <button key={t.id} onClick={()=>onNav(t.id)} style={{background:t.light,borderRadius:20,padding:tb?'20px 14px':'16px 12px',display:'flex',flexDirection:'column',alignItems:'center',gap:8,border:`1.5px solid ${t.color}20`,cursor:'pointer',animation:`fadeIn .3s ease ${i*.07}s both`}}>
                 <span style={{fontSize:tb?36:30}}>{t.emoji}</span>
                 <span style={{fontWeight:800,fontSize:tb?16:14,color:C.text}}>{t.label}</span>
               </button>
@@ -679,20 +618,20 @@ function Dashboard({role,onNav}){
   );
 }
 
-// ─── LEARN: CATEGORY GRID ────────────────────────────────────
+// ─── LEARN MODE ───────────────────────────────────────────────
 function LearnMode({onBack,onNav}){
   const tb=useW()>=768;
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
       <Hdr title="📖 Learn Mode" onBack={onBack} color={C.green}/>
-      <div style={{background:C.greenL,padding:tb?'11px 24px':'9px 16px',borderBottom:`1px solid ${C.green}20`}}>
-        <p style={{fontSize:tb?14:12,color:C.soft,fontWeight:600}}>Choose a category to begin — then pick Grid or Flashcard view</p>
+      <div style={{background:C.greenL,padding:tb?'10px 24px':'8px 16px',borderBottom:`1px solid ${C.green}20`}}>
+        <p style={{fontSize:tb?14:12,color:C.soft,fontWeight:600}}>Choose a category — then pick Grid or Flashcard view</p>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:tb?'18px 24px':12}}>
-        <div style={{display:'grid',gridTemplateColumns:tb?'repeat(4,1fr)':'repeat(2,1fr)',gap:tb?14:11}}>
+      <div style={{flex:1,overflowY:'auto',padding:tb?'16px 24px':12}}>
+        <div style={{display:'grid',gridTemplateColumns:tb?'repeat(4,1fr)':'repeat(2,1fr)',gap:tb?14:10}}>
           {CATS.map((cat,i)=>(
-            <button key={cat.id} onClick={()=>onNav('lcat',cat)} style={{background:`${cat.color}12`,borderRadius:22,padding:tb?'22px 14px':'18px 10px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?10:7,border:`2px solid ${cat.color}28`,cursor:'pointer',animation:`fadeIn .3s ease ${i*.05}s both`,boxShadow:`0 3px 10px ${cat.color}12`}}>
-              <span style={{fontSize:tb?46:36}}>{cat.emoji}</span>
+            <button key={cat.id} onClick={()=>onNav('lcat',cat)} style={{background:`${cat.color}11`,borderRadius:22,padding:tb?'22px 14px':'18px 10px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?10:7,border:`2px solid ${cat.color}26`,cursor:'pointer',animation:`fadeIn .3s ease ${i*.04}s both`}}>
+              <span style={{fontSize:tb?44:36}}>{cat.emoji}</span>
               <span style={{fontWeight:800,fontSize:tb?16:14,color:C.text,textAlign:'center',lineHeight:1.2}}>{cat.label}</span>
               <span style={{fontSize:tb?12:10,color:C.soft}}>{cat.items.length} items</span>
             </button>
@@ -703,9 +642,9 @@ function LearnMode({onBack,onNav}){
   );
 }
 
-// ─── LEARN: CATEGORY VIEW (GRID + FLASHCARD) ─────────────────
+// ─── LEARN: CATEGORY (GRID + FLASHCARD) ──────────────────────
 function LearnCat({cat,onBack,onNav}){
-  const [viewMode,setViewMode]=useState('grid'); // 'grid' | 'flashcard'
+  const [viewMode,setViewMode]=useState('grid');
   const [idx,setIdx]=useState(0);
   const [shuffled,setShuffled]=useState(false);
   const [items,setItems]=useState(cat.items);
@@ -715,97 +654,66 @@ function LearnCat({cat,onBack,onNav}){
 
   function shuffle(){setItems(it=>[...it].sort(()=>Math.random()-.5));setShuffled(true);setIdx(0);}
   function unShuffle(){setItems(cat.items);setShuffled(false);setIdx(0);}
+  function tapCard(item,i){setActive(i);setTapped(i);speak(item.label);setTimeout(()=>setTapped(null),500);setTimeout(()=>setActive(null),2200);}
+  function advance(dir){const next=(idx+dir+items.length)%items.length;setIdx(next);speak(items[next].label);}
+  useEffect(()=>{if(viewMode==='flashcard')speak(items[idx].label);},[viewMode,idx]);
 
-  function tapCard(item,i){
-    setActive(i);setTapped(i);speak(item.label);
-    setTimeout(()=>setTapped(null),500);
-    setTimeout(()=>setActive(null),2200);
-  }
-
-  function advance(dir){
-    const next=(idx+dir+items.length)%items.length;
-    setIdx(next);speak(items[next].label);
-  }
-
-  useEffect(()=>{
-    if(viewMode==='flashcard')speak(items[idx].label);
-  },[viewMode,idx]);
-
-  const imgSz=tb?140:110;
+  const imgSz=tb?140:108;
 
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
       <Hdr title={`${cat.emoji} ${cat.label}`} onBack={onBack} color={cat.color}
         right={
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            {/* View mode toggle */}
             <div style={{display:'flex',background:C.bg,borderRadius:12,padding:3,gap:2,border:`1.5px solid ${C.border}`}}>
               {[{id:'grid',icon:'⊞',label:'Grid'},{id:'flashcard',icon:'◧',label:'Cards'}].map(v=>(
-                <button key={v.id} onClick={()=>setViewMode(v.id)}
-                  style={{background:viewMode===v.id?cat.color:'transparent',color:viewMode===v.id?'white':C.soft,borderRadius:9,padding:tb?'6px 13px':'5px 10px',fontWeight:700,fontSize:tb?14:12,transition:'all .2s'}}>
+                <button key={v.id} onClick={()=>setViewMode(v.id)} style={{background:viewMode===v.id?cat.color:'transparent',color:viewMode===v.id?'white':C.soft,borderRadius:9,padding:tb?'6px 13px':'5px 10px',fontWeight:700,fontSize:tb?14:12,transition:'all .2s'}}>
                   {v.icon}{tb?` ${v.label}`:''}
                 </button>
               ))}
             </div>
-            <button onClick={()=>onNav('lgame',{cat,items})}
-              style={{background:cat.color,color:'white',borderRadius:14,padding:tb?'10px 16px':'8px 12px',fontWeight:700,fontSize:tb?14:12}}>🎯 Game</button>
+            <button onClick={()=>onNav('lgame',{cat,items})} style={{background:cat.color,color:'white',borderRadius:14,padding:tb?'10px 16px':'8px 12px',fontWeight:700,fontSize:tb?14:12}}>🎯 Game</button>
           </div>
         }/>
 
-      {/* ── FLASHCARD VIEW ── */}
+      {/* FLASHCARD */}
       {viewMode==='flashcard'&&(
         <div style={{flex:1,display:'flex',flexDirection:'column',padding:tb?'20px 28px':14,gap:14,overflowY:'auto'}}>
-          {/* Counter + controls */}
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <span style={{fontWeight:700,fontSize:tb?16:14,color:C.soft}}>{idx+1} / {items.length}</span>
             <div style={{display:'flex',gap:8}}>
-              <button onClick={shuffled?unShuffle:shuffle}
-                style={{background:shuffled?`${cat.color}18`:C.card,borderRadius:12,padding:tb?'8px 14px':'6px 11px',fontWeight:700,fontSize:tb?14:12,color:shuffled?cat.color:C.soft,border:`1.5px solid ${shuffled?cat.color:C.border}`}}>
-                {shuffled?'↺ Original':'🔀 Shuffle'}
-              </button>
-              <button onClick={()=>speak(items[idx].label)}
-                style={{background:cat.color,color:'white',borderRadius:12,padding:tb?'8px 14px':'6px 11px',fontWeight:700,fontSize:tb?14:12}}>🔊 Hear</button>
+              <button onClick={shuffled?unShuffle:shuffle} style={{background:shuffled?`${cat.color}16`:C.card,borderRadius:12,padding:tb?'8px 14px':'6px 11px',fontWeight:700,fontSize:tb?14:12,color:shuffled?cat.color:C.soft,border:`1.5px solid ${shuffled?cat.color:C.border}`}}>{shuffled?'↺ Original':'🔀 Shuffle'}</button>
+              <button onClick={()=>speak(items[idx].label)} style={{background:cat.color,color:'white',borderRadius:12,padding:tb?'8px 14px':'6px 11px',fontWeight:700,fontSize:tb?14:12}}>🔊 Hear</button>
             </div>
           </div>
-
-          {/* Card */}
           <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:tb?22:16}}>
-            <div style={{background:C.card,borderRadius:28,padding:tb?36:22,display:'flex',flexDirection:'column',alignItems:'center',gap:tb?20:14,boxShadow:`0 8px 32px ${cat.color}18`,border:`2px solid ${cat.color}20`,width:'100%',maxWidth:tb?480:360,animation:'fadeIn .3s ease'}}>
+            <div style={{background:C.card,borderRadius:28,padding:tb?36:22,display:'flex',flexDirection:'column',alignItems:'center',gap:tb?20:14,boxShadow:`0 8px 32px ${cat.color}16`,border:`2px solid ${cat.color}18`,width:'100%',maxWidth:tb?480:360,animation:'fadeIn .3s ease'}}>
               <ImgCard item={items[idx]} size={tb?220:170} color={cat.color}/>
               <div style={{fontWeight:900,fontSize:tb?30:24,color:C.text,textAlign:'center'}}>{items[idx].label}</div>
               {items[idx].syllables&&<SyllableViz parts={items[idx].syllables}/>}
               {items[idx].youtubeId&&(
-                <button onClick={()=>window.open(`https://www.youtube.com/watch?v=${items[idx].youtubeId}`,'_blank')}
-                  style={{background:'#FF0000',color:'white',borderRadius:12,padding:'9px 20px',fontWeight:700,fontSize:14,display:'flex',alignItems:'center',gap:7}}>▶ Watch Video</button>
+                <button onClick={()=>window.open(`https://www.youtube.com/watch?v=${items[idx].youtubeId}`,'_blank')} style={{background:'#FF0000',color:'white',borderRadius:12,padding:'9px 20px',fontWeight:700,fontSize:14}}>▶ Watch Video</button>
               )}
             </div>
           </div>
-
-          {/* Navigation */}
           <div style={{display:'flex',gap:12,justifyContent:'center',paddingBottom:8}}>
-            <button onClick={()=>advance(-1)}
-              style={{background:C.card,borderRadius:18,padding:tb?'15px 30px':'13px 24px',fontWeight:900,fontSize:tb?22:20,border:`2px solid ${C.border}`,color:C.text,flex:1,maxWidth:160}}>← Prev</button>
-            <button onClick={()=>advance(1)}
-              style={{background:cat.color,color:'white',borderRadius:18,padding:tb?'15px 30px':'13px 24px',fontWeight:900,fontSize:tb?22:20,flex:1,maxWidth:160}}>Next →</button>
+            <button onClick={()=>advance(-1)} style={{background:C.card,borderRadius:18,padding:tb?'15px 30px':'13px 24px',fontWeight:900,fontSize:tb?22:20,border:`2px solid ${C.border}`,color:C.text,flex:1,maxWidth:160}}>← Prev</button>
+            <button onClick={()=>advance(1)} style={{background:cat.color,color:'white',borderRadius:18,padding:tb?'15px 30px':'13px 24px',fontWeight:900,fontSize:tb?22:20,flex:1,maxWidth:160}}>Next →</button>
           </div>
         </div>
       )}
 
-      {/* ── GRID VIEW ── */}
+      {/* GRID */}
       {viewMode==='grid'&&(
         <>
-          <div style={{background:`${cat.color}10`,padding:tb?'10px 24px':'8px 16px',borderBottom:`1px solid ${cat.color}20`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div style={{background:`${cat.color}10`,padding:tb?'10px 24px':'8px 16px',borderBottom:`1px solid ${cat.color}18`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <p style={{fontSize:tb?14:12,color:C.soft,fontWeight:600}}>👆 Tap any card to hear the word</p>
-            <button onClick={shuffled?unShuffle:shuffle}
-              style={{background:shuffled?`${cat.color}18`:C.card,borderRadius:10,padding:'5px 12px',fontWeight:700,fontSize:12,color:shuffled?cat.color:C.soft,border:`1.5px solid ${shuffled?cat.color:C.border}`}}>
-              {shuffled?'↺ Original':'🔀 Shuffle'}
-            </button>
+            <button onClick={shuffled?unShuffle:shuffle} style={{background:shuffled?`${cat.color}16`:C.card,borderRadius:10,padding:'5px 12px',fontWeight:700,fontSize:12,color:shuffled?cat.color:C.soft,border:`1.5px solid ${shuffled?cat.color:C.border}`}}>{shuffled?'↺ Original':'🔀 Shuffle'}</button>
           </div>
           <div style={{flex:1,overflowY:'auto',padding:tb?'14px 24px':11}}>
             <div style={{display:'grid',gridTemplateColumns:tb?'repeat(4,1fr)':'repeat(2,1fr)',gap:tb?14:10}}>
               {items.map((item,i)=>(
-                <button key={item.id} onClick={()=>tapCard(item,i)}
-                  style={{background:active===i?`${cat.color}16`:C.card,borderRadius:20,padding:tb?'18px 12px':'14px 9px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?10:7,border:`2.5px solid ${active===i?cat.color:C.border}`,cursor:'pointer',transition:'all .18s',animation:`fadeIn .25s ease ${Math.min(i,20)*0.04}s both`,transform:tapped===i?'scale(.94)':active===i?'scale(1.04)':'scale(1)',boxShadow:active===i?`0 5px 18px ${cat.color}26`:`0 2px 6px rgba(0,0,0,.05)`}}>
+                <button key={item.id} onClick={()=>tapCard(item,i)} style={{background:active===i?`${cat.color}14`:C.card,borderRadius:20,padding:tb?'18px 12px':'14px 9px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?10:7,border:`2.5px solid ${active===i?cat.color:C.border}`,cursor:'pointer',transition:'all .18s',animation:`fadeIn .25s ease ${Math.min(i,20)*0.04}s both`,transform:tapped===i?'scale(.94)':active===i?'scale(1.04)':'scale(1)',boxShadow:active===i?`0 5px 18px ${cat.color}24`:`0 2px 6px rgba(0,0,0,.04)`}}>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'center',width:imgSz,height:imgSz}}>
                     <ImgCard item={item} size={imgSz} color={cat.color}/>
                   </div>
@@ -822,136 +730,78 @@ function LearnCat({cat,onBack,onNav}){
 }
 
 // ─── LEARN: GAME ─────────────────────────────────────────────
-// Two modes: "What is this?" (tacting) vs "Find the ___" (listener responding)
-// Works for DTT, errorless training, discrete trials
 function LearnGame({cat,items:passedItems,onBack}){
   const allItems=(passedItems||cat.items).filter(it=>!it.colorHex&&!it.numVal&&!it.shapeType);
   const TOTAL=6;
-  const [gameMode,setGameMode]=useState('identify'); // identify | match
+  const [gameMode,setGameMode]=useState('identify');
   const [score,setScore]=useState(0);const [round,setRound]=useState(0);
   const [sel,setSel]=useState(null);const [res,setRes]=useState(null);const [over,setOver]=useState(false);
   const [started,setStarted]=useState(false);
   const tb=useW()>=768;
-
-  const pool=useMemo(()=>{
-    const base=allItems.length>=4?allItems:[...allItems,...CATS[3].items];
-    return base.slice(0,Math.max(4,base.length));
-  },[]);
-
+  const pool=useMemo(()=>{const base=allItems.length>=4?allItems:[...allItems,...CATS[3].items];return base.slice(0,Math.max(4,base.length));},[]);
   const cur=pool[round%pool.length];
-
-  const opts=useMemo(()=>{
-    const others=pool.filter(i=>i.id!==cur.id).sort(()=>Math.random()-.5).slice(0,3);
-    return [...others,cur].sort(()=>Math.random()-.5);
-  },[round,gameMode]);
-
-  useEffect(()=>{
-    if(started)speak(gameMode==='identify'?`What is this?`:`Find the ${cur.label}`);
-  },[round,started,gameMode]);
-
+  const opts=useMemo(()=>{const others=pool.filter(i=>i.id!==cur.id).sort(()=>Math.random()-.5).slice(0,3);return [...others,cur].sort(()=>Math.random()-.5);},[round,gameMode]);
+  useEffect(()=>{if(started)speak(gameMode==='identify'?'What is this?':`Find the ${cur.label}`);},[round,started,gameMode]);
   function answer(item){
     if(res)return;setSel(item.id);
-    if(item.id===cur.id){
-      setRes('ok');setScore(s=>s+1);speak('Great job!');
-      setTimeout(()=>{if(round+1>=TOTAL)setOver(true);else{setRound(r=>r+1);setSel(null);setRes(null);}},1100);
-    } else {
-      setRes('no');speak('Try again!');
-      setTimeout(()=>{setSel(null);setRes(null);},900);
-    }
+    if(item.id===cur.id){setRes('ok');setScore(s=>s+1);speak('Great job!');setTimeout(()=>{if(round+1>=TOTAL)setOver(true);else{setRound(r=>r+1);setSel(null);setRes(null);}},1100);}
+    else{setRes('no');speak('Try again!');setTimeout(()=>{setSel(null);setRes(null);},900);}
   }
-
-  // Pre-game screen — choose mode
-  if(!started){
-    return(
-      <div style={{height:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:22,padding:32,background:C.bg}}>
-        <span style={{fontSize:64}}>{cat.emoji}</span>
-        <h2 style={{fontSize:tb?28:24,fontWeight:900,color:C.text,textAlign:'center'}}>{cat.label} Game</h2>
-        <p style={{fontSize:14,color:C.soft,fontWeight:600}}>Choose a game type:</p>
-        <div style={{display:'flex',flexDirection:'column',gap:12,width:'100%',maxWidth:380}}>
-          {[
-            {id:'identify',label:'👀 What is this?', sub:'See the image — choose the correct word\n(Tacting / expressive labeling)'},
-            {id:'match',   label:'🔊 Find the ___',  sub:'Hear the word — tap the matching image\n(Listener responding / receptive ID)'},
-          ].map(gm=>(
-            <button key={gm.id} onClick={()=>setGameMode(gm.id)}
-              style={{background:gameMode===gm.id?`${cat.color}16`:C.card,borderRadius:18,padding:'16px 20px',textAlign:'left',border:`2.5px solid ${gameMode===gm.id?cat.color:C.border}`,cursor:'pointer',transition:'all .2s'}}>
-              <p style={{fontWeight:800,fontSize:17,color:gameMode===gm.id?cat.color:C.text}}>{gm.label}</p>
-              <p style={{fontSize:12,color:C.soft,marginTop:4,whiteSpace:'pre-line',lineHeight:1.5}}>{gm.sub}</p>
-            </button>
-          ))}
-        </div>
-        <div style={{display:'flex',gap:12,width:'100%',maxWidth:380}}>
-          <button onClick={onBack} style={{flex:'0 0 80px',background:C.card,borderRadius:16,padding:14,fontWeight:700,fontSize:15,border:`2px solid ${C.border}`,color:C.soft}}>← Back</button>
-          <button onClick={()=>setStarted(true)} style={{flex:1,background:cat.color,color:'white',borderRadius:16,padding:14,fontWeight:900,fontSize:18}}>Start →</button>
-        </div>
+  if(!started)return(
+    <div style={{height:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:22,padding:32,background:C.bg}}>
+      <span style={{fontSize:64}}>{cat.emoji}</span>
+      <h2 style={{fontSize:tb?28:24,fontWeight:900,color:C.text,textAlign:'center'}}>{cat.label} Game</h2>
+      <div style={{display:'flex',flexDirection:'column',gap:12,width:'100%',maxWidth:380}}>
+        {[{id:'identify',label:'👀 What is this?',sub:'See image — choose the word (Tacting)'},{id:'match',label:'🔊 Find the ___',sub:'Hear word — tap the image (Listener Responding)'}].map(gm=>(
+          <button key={gm.id} onClick={()=>setGameMode(gm.id)} style={{background:gameMode===gm.id?`${cat.color}14`:C.card,borderRadius:18,padding:'16px 20px',textAlign:'left',border:`2.5px solid ${gameMode===gm.id?cat.color:C.border}`,cursor:'pointer',transition:'all .2s'}}>
+            <p style={{fontWeight:800,fontSize:17,color:gameMode===gm.id?cat.color:C.text}}>{gm.label}</p>
+            <p style={{fontSize:12,color:C.soft,marginTop:3}}>{gm.sub}</p>
+          </button>
+        ))}
       </div>
-    );
-  }
-
+      <div style={{display:'flex',gap:12,width:'100%',maxWidth:380}}>
+        <button onClick={onBack} style={{flex:'0 0 80px',background:C.card,borderRadius:16,padding:14,fontWeight:700,fontSize:15,border:`2px solid ${C.border}`,color:C.soft}}>← Back</button>
+        <button onClick={()=>setStarted(true)} style={{flex:1,background:cat.color,color:'white',borderRadius:16,padding:14,fontWeight:900,fontSize:18}}>Start →</button>
+      </div>
+    </div>
+  );
   if(over){
     const stars=score>=5?3:score>=3?2:1;
     return(
       <div style={{height:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:22,padding:tb?48:28,background:C.bg}}>
         <span style={{fontSize:tb?100:78,animation:'celebrate 1s ease'}}>🎉</span>
         <h2 style={{fontSize:tb?36:28,fontWeight:900,color:C.text}}>Amazing Work!</h2>
-        <div style={{background:`${cat.color}16`,borderRadius:24,padding:tb?'28px 52px':'20px 36px',textAlign:'center',border:`2px solid ${cat.color}28`}}>
+        <div style={{background:`${cat.color}14`,borderRadius:24,padding:tb?'28px 52px':'20px 36px',textAlign:'center',border:`2px solid ${cat.color}26`}}>
           <p style={{fontSize:tb?60:48,fontWeight:900,color:cat.color}}>{score}/{TOTAL}</p>
-          <p style={{fontSize:tb?17:14,color:C.soft,fontWeight:600,marginTop:4}}>Correct Answers</p>
+          <p style={{fontSize:16,color:C.soft,fontWeight:600,marginTop:4}}>Correct Answers</p>
           <div style={{display:'flex',justifyContent:'center',gap:8,marginTop:14}}>{[1,2,3].map(s=><span key={s} style={{fontSize:tb?36:28,opacity:s<=stars?1:.25}}>⭐</span>)}</div>
         </div>
         <div style={{display:'flex',gap:12,width:'100%',maxWidth:360}}>
-          <button onClick={()=>{setRound(0);setScore(0);setOver(false);setSel(null);setRes(null);setStarted(false);}}
-            style={{flex:1,background:cat.color,color:'white',borderRadius:18,padding:tb?20:16,fontWeight:800,fontSize:tb?18:16}}>Play Again</button>
-          <button onClick={onBack}
-            style={{flex:1,background:C.bg,color:C.text,borderRadius:18,padding:tb?20:16,fontWeight:700,fontSize:tb?17:15,border:`2px solid ${C.border}`}}>Done ✓</button>
+          <button onClick={()=>{setRound(0);setScore(0);setOver(false);setSel(null);setRes(null);setStarted(false);}} style={{flex:1,background:cat.color,color:'white',borderRadius:18,padding:tb?20:16,fontWeight:800,fontSize:tb?18:16}}>Play Again</button>
+          <button onClick={onBack} style={{flex:1,background:C.bg,color:C.text,borderRadius:18,padding:tb?20:16,fontWeight:700,fontSize:tb?17:15,border:`2px solid ${C.border}`}}>Done ✓</button>
         </div>
       </div>
     );
   }
-
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
-      <Hdr title={gameMode==='identify'?'👀 What is this?':'🔊 Find the ___'} onBack={onBack} color={cat.color}
-        right={<span style={{fontWeight:900,color:cat.color,fontSize:tb?20:17}}>{score}/{TOTAL}</span>}/>
+      <Hdr title={gameMode==='identify'?'👀 What is this?':'🔊 Find the ___'} onBack={onBack} color={cat.color} right={<span style={{fontWeight:900,color:cat.color,fontSize:tb?20:17}}>{score}/{TOTAL}</span>}/>
       <div style={{padding:tb?'8px 24px':'8px 16px',background:C.card}}>
         <div style={{background:C.bg,borderRadius:8,height:10,overflow:'hidden'}}>
           <div style={{width:`${(round/TOTAL)*100}%`,height:'100%',background:cat.color,borderRadius:8,transition:'width .4s ease'}}/>
         </div>
       </div>
       <div style={{flex:1,display:'flex',flexDirection:tb?'row':'column',padding:tb?'14px 24px':10,gap:10,overflowY:'auto',alignItems:tb?'flex-start':'stretch'}}>
-        {/* Stimulus panel */}
-        <div style={{background:`${cat.color}10`,borderRadius:22,padding:tb?22:16,display:'flex',flexDirection:'column',alignItems:'center',gap:14,border:`2px solid ${cat.color}18`,justifyContent:'center',flex:tb?'0 0 250px':1}}>
-          {gameMode==='identify'?(
-            <>
-              <p style={{fontSize:13,fontWeight:700,color:C.soft}}>What is this?</p>
-              <ImgCard item={cur} size={tb?180:130} color={cat.color}/>
-              {cur.syllables&&<SyllableViz parts={cur.syllables}/>}
-            </>
-          ):(
-            <>
-              <p style={{fontSize:13,fontWeight:700,color:C.soft}}>Find the...</p>
-              <div style={{background:cat.color,borderRadius:16,padding:'14px 32px'}}>
-                <p style={{fontWeight:900,fontSize:tb?32:26,color:'white'}}>{cur.label}</p>
-              </div>
-            </>
-          )}
-          <button onClick={()=>speak(gameMode==='identify'?'What is this?':`Find the ${cur.label}`)}
-            style={{background:cat.color,color:'white',borderRadius:14,padding:tb?'10px 22px':'8px 16px',fontWeight:700,fontSize:tb?15:13}}>🔊 Hear</button>
+        <div style={{background:`${cat.color}10`,borderRadius:22,padding:tb?22:16,display:'flex',flexDirection:'column',alignItems:'center',gap:14,border:`2px solid ${cat.color}16`,justifyContent:'center',flex:tb?'0 0 250px':1}}>
+          {gameMode==='identify'?(<><p style={{fontSize:13,fontWeight:700,color:C.soft}}>What is this?</p><ImgCard item={cur} size={tb?180:130} color={cat.color}/>{cur.syllables&&<SyllableViz parts={cur.syllables}/>}</>):(<><p style={{fontSize:13,fontWeight:700,color:C.soft}}>Find the...</p><div style={{background:cat.color,borderRadius:16,padding:'14px 32px'}}><p style={{fontWeight:900,fontSize:tb?32:26,color:'white'}}>{cur.label}</p></div></>)}
+          <button onClick={()=>speak(gameMode==='identify'?'What is this?':`Find the ${cur.label}`)} style={{background:cat.color,color:'white',borderRadius:14,padding:tb?'10px 22px':'8px 16px',fontWeight:700,fontSize:tb?15:13}}>🔊 Hear</button>
         </div>
-        {/* 4 choices */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:tb?12:8,flex:1,alignContent:'start'}}>
           {opts.map(opt=>{
             const ok=sel===opt.id&&res==='ok';const no=sel===opt.id&&res==='no';
             return(
-              <button key={opt.id} onClick={()=>answer(opt)}
-                style={{background:ok?'#E8F7F2':no?'#FEECEC':C.card,borderRadius:18,padding:tb?'16px 10px':'12px 8px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?10:6,border:`2.5px solid ${ok?C.green:no?'#E57373':C.border}`,transition:'all .18s',transform:sel===opt.id?'scale(.96)':'scale(1)'}}>
-                {gameMode==='identify'?(
-                  <p style={{fontWeight:800,fontSize:tb?20:15,color:ok?C.green:no?'#E57373':C.text,textAlign:'center'}}>{opt.label}</p>
-                ):(
-                  <>
-                    <ImgCard item={opt} size={tb?110:78} color={cat.color}/>
-                    <p style={{fontWeight:700,fontSize:tb?14:12,color:ok?C.green:no?'#E57373':C.text,textAlign:'center'}}>{opt.label}</p>
-                  </>
-                )}
+              <button key={opt.id} onClick={()=>answer(opt)} style={{background:ok?'#E8F7F2':no?'#FEECEC':C.card,borderRadius:18,padding:tb?'16px 10px':'12px 8px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?10:6,border:`2.5px solid ${ok?C.green:no?'#E57373':C.border}`,transition:'all .18s',transform:sel===opt.id?'scale(.96)':'scale(1)'}}>
+                {gameMode==='identify'?(<p style={{fontWeight:800,fontSize:tb?20:15,color:ok?C.green:no?'#E57373':C.text,textAlign:'center'}}>{opt.label}</p>):(<><ImgCard item={opt} size={tb?110:78} color={cat.color}/><p style={{fontWeight:700,fontSize:tb?14:12,color:ok?C.green:no?'#E57373':C.text,textAlign:'center'}}>{opt.label}</p></>)}
                 {ok&&<span style={{fontSize:22}}>✅</span>}
                 {no&&<span style={{fontSize:22}}>❌</span>}
               </button>
@@ -964,17 +814,33 @@ function LearnGame({cat,items:passedItems,onBack}){
 }
 
 // ─── FIRST / THEN ─────────────────────────────────────────────
-function FirstThen({onBack}){
+// Now includes custom uploaded photos alongside default activities
+function FirstThen({onBack,uploads}){
   const [first,setFirst]=useState(null);const [then,setThen]=useState(null);
   const [picking,setPicking]=useState('first');
   const [showTmr,setShowTmr]=useState(false);
   const [tSec,setTSec]=useState(300);const [tLeft,setTLeft]=useState(300);const [running,setRunning]=useState(false);
+  const [actTab,setActTab]=useState('default'); // 'default' | 'custom'
   const ref=useRef(null);const tb=useW()>=768;
-  useEffect(()=>{if(running&&tLeft>0){ref.current=setTimeout(()=>setTLeft(t=>t-1),1000);}else if(tLeft===0&&running){setRunning(false);speak('Time is up!');}return()=>clearTimeout(ref.current);},[running,tLeft]);
-  function pick(act){if(picking==='first'){setFirst(act);speak(`First: ${act.label}`);setPicking('then');}else if(picking==='then'){setThen(act);speak(`Then: ${act.label}`);setPicking(null);}}
+
+  useEffect(()=>{
+    if(running&&tLeft>0){ref.current=setTimeout(()=>setTLeft(t=>t-1),1000);}
+    else if(tLeft===0&&running){setRunning(false);speak('Time is up!');}
+    return()=>clearTimeout(ref.current);
+  },[running,tLeft]);
+
+  function pick(act){
+    if(picking==='first'){setFirst(act);speak(`First: ${act.label}`);setPicking('then');}
+    else if(picking==='then'){setThen(act);speak(`Then: ${act.label}`);setPicking(null);}
+  }
   function reset(){setFirst(null);setThen(null);setPicking('first');setTLeft(tSec);setRunning(false);}
   function fmt(s){return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
+
+  // Custom uploads that could be activities
+  const customActs=uploads.filter(u=>u.cat==='Activity'||u.cat==='Routine'||u.cat==='Place'||u.cat==='Person'||u.cat==='Room');
+
   const pct=tLeft/tSec;const R=tb?46:38;const circ=2*Math.PI*R;const sz=(R+20)*2;
+
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
       <Hdr title="📋 First / Then" onBack={onBack} color={C.coral}
@@ -983,16 +849,30 @@ function FirstThen({onBack}){
         {/* Board */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:tb?20:12}}>
           {[{key:'first',label:'FIRST',val:first,color:C.coral},{key:'then',label:'THEN',val:then,color:C.green}].map(slot=>(
-            <button key={slot.key} onClick={()=>setPicking(slot.key)}
-              style={{background:slot.val?`${slot.color}12`:C.card,borderRadius:24,padding:tb?20:16,display:'flex',flexDirection:'column',alignItems:'center',gap:tb?14:10,border:`3px solid ${picking===slot.key?slot.color:slot.val?`${slot.color}40`:C.border}`,minHeight:tb?200:160,justifyContent:'center',cursor:'pointer',boxShadow:picking===slot.key?`0 0 0 5px ${slot.color}20`:'none',transition:'all .2s'}}>
+            <button key={slot.key} onClick={()=>setPicking(slot.key)} style={{background:slot.val?`${slot.color}10`:C.card,borderRadius:24,padding:tb?20:16,display:'flex',flexDirection:'column',alignItems:'center',gap:tb?14:10,border:`3px solid ${picking===slot.key?slot.color:slot.val?`${slot.color}38`:C.border}`,minHeight:tb?200:160,justifyContent:'center',cursor:'pointer',boxShadow:picking===slot.key?`0 0 0 5px ${slot.color}18`:'none',transition:'all .2s'}}>
               <div style={{background:slot.color,borderRadius:12,padding:tb?'5px 18px':'3px 14px',color:'white',fontWeight:900,fontSize:tb?15:13,letterSpacing:1}}>{slot.label}</div>
-              {slot.val?(<><span style={{fontSize:tb?62:48}}>{slot.val.emoji}</span><span style={{fontWeight:800,fontSize:tb?18:15,color:C.text}}>{slot.val.label}</span></>):(<><span style={{fontSize:tb?42:34,opacity:.2}}>＋</span><span style={{fontSize:tb?14:12,color:C.soft,fontWeight:600}}>{picking===slot.key?'Choose below ↓':'Tap to select'}</span></>)}
+              {slot.val?(
+                <>
+                  {slot.val.imgSrc?(
+                    <img src={slot.val.imgSrc} alt={slot.val.label} style={{width:tb?90:72,height:tb?90:72,borderRadius:18,objectFit:'cover',border:`2px solid ${slot.color}30`}}/>
+                  ):(
+                    <span style={{fontSize:tb?62:48}}>{slot.val.emoji}</span>
+                  )}
+                  <span style={{fontWeight:800,fontSize:tb?18:15,color:C.text,textAlign:'center'}}>{slot.val.label}</span>
+                </>
+              ):(
+                <>
+                  <span style={{fontSize:tb?42:34,opacity:.2}}>＋</span>
+                  <span style={{fontSize:tb?14:12,color:C.soft,fontWeight:600}}>{picking===slot.key?'Choose below ↓':'Tap to select'}</span>
+                </>
+              )}
             </button>
           ))}
         </div>
+
         {/* Timer */}
         {showTmr&&(
-          <div style={{background:C.yellowL,borderRadius:24,padding:tb?20:16,display:'flex',flexDirection:tb?'row':'column',alignItems:'center',gap:tb?28:14,border:`2px solid ${C.yellow}40`}}>
+          <div style={{background:C.yellowL,borderRadius:24,padding:tb?20:16,display:'flex',flexDirection:tb?'row':'column',alignItems:'center',gap:tb?28:14,border:`2px solid ${C.yellow}38`}}>
             <div style={{position:'relative',width:sz,height:sz,flexShrink:0}}>
               <svg width={sz} height={sz} style={{position:'absolute',top:0,left:0}}>
                 <circle cx={sz/2} cy={sz/2} r={R} fill="none" stroke={`${C.yellow}28`} strokeWidth="8"/>
@@ -1013,24 +893,55 @@ function FirstThen({onBack}){
             </div>
           </div>
         )}
+
         {picking&&(
-          <div style={{background:picking==='first'?`${C.coral}10`:`${C.green}10`,borderRadius:14,padding:tb?'13px 22px':'10px 16px',textAlign:'center',border:`1.5px solid ${picking==='first'?C.coral:C.green}28`}}>
+          <div style={{background:picking==='first'?`${C.coral}10`:`${C.green}10`,borderRadius:14,padding:tb?'13px 22px':'10px 16px',textAlign:'center',border:`1.5px solid ${picking==='first'?C.coral:C.green}26`}}>
             <p style={{fontWeight:700,fontSize:tb?16:14,color:picking==='first'?C.coral:C.green}}>{picking==='first'?'👆 Choose the FIRST activity':'👆 Now choose the THEN activity'}</p>
           </div>
         )}
-        {/* Activities */}
-        <div>
-          <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:10,letterSpacing:1.4,textTransform:'uppercase'}}>Activities</p>
+
+        {/* Activity tabs: Default | My Photos */}
+        <div style={{display:'flex',background:C.card,borderRadius:14,padding:4,gap:4,border:`1.5px solid ${C.border}`}}>
+          {[{id:'default',label:'⭐ Default Activities'},{id:'custom',label:`📷 My Photos ${customActs.length>0?`(${customActs.length})`:''}`}].map(t=>(
+            <button key={t.id} onClick={()=>setActTab(t.id)} style={{flex:1,padding:tb?'10px 0':'8px 0',borderRadius:11,fontWeight:700,fontSize:tb?15:13,background:actTab===t.id?C.coral:'transparent',color:actTab===t.id?'white':C.soft,transition:'all .2s'}}>{t.label}</button>
+          ))}
+        </div>
+
+        {/* Default activities */}
+        {actTab==='default'&&(
           <div style={{display:'grid',gridTemplateColumns:tb?'repeat(4,1fr)':'repeat(3,1fr)',gap:tb?12:9}}>
-            {ACTS.map(act=>(
-              <button key={act.id} onClick={()=>picking&&pick(act)}
-                style={{background:`${act.color}12`,borderRadius:18,padding:tb?'16px 8px':'12px 6px',display:'flex',flexDirection:'column',alignItems:'center',gap:6,border:`2px solid ${act.color}26`,cursor:picking?'pointer':'default',opacity:picking?1:.5,transition:'all .15s'}}>
+            {DEFAULT_ACTS.map(act=>(
+              <button key={act.id} onClick={()=>picking&&pick(act)} style={{background:`${act.color}11`,borderRadius:18,padding:tb?'16px 8px':'12px 6px',display:'flex',flexDirection:'column',alignItems:'center',gap:6,border:`2px solid ${act.color}24`,cursor:picking?'pointer':'default',opacity:picking?1:.5,transition:'all .15s'}}>
                 <span style={{fontSize:tb?32:26}}>{act.emoji}</span>
                 <span style={{fontWeight:700,fontSize:tb?13:11,color:C.text,textAlign:'center',lineHeight:1.2}}>{act.label}</span>
               </button>
             ))}
           </div>
-        </div>
+        )}
+
+        {/* Custom uploaded photos */}
+        {actTab==='custom'&&(
+          customActs.length===0?(
+            <div style={{background:C.card,borderRadius:18,padding:'28px 20px',textAlign:'center',border:`2px dashed ${C.border}`}}>
+              <p style={{fontSize:32,marginBottom:10}}>📷</p>
+              <p style={{fontWeight:700,fontSize:15,color:C.soft}}>No custom photos yet</p>
+              <p style={{fontSize:13,color:C.soft,marginTop:6,lineHeight:1.5}}>Go to <strong>My Content</strong> and upload photos of your session room, familiar places, people, or routines. Tag them as Activity, Routine, Place, or Person.</p>
+            </div>
+          ):(
+            <div style={{display:'grid',gridTemplateColumns:tb?'repeat(4,1fr)':'repeat(3,1fr)',gap:tb?12:9}}>
+              {customActs.map(item=>(
+                <button key={item.id} onClick={()=>picking&&pick({id:item.id,label:item.label,imgSrc:item.imgSrc,emoji:'📷',color:C.coral})} style={{background:`${C.coral}10`,borderRadius:18,padding:tb?'12px 8px':'10px 6px',display:'flex',flexDirection:'column',alignItems:'center',gap:6,border:`2px solid ${C.coral}22`,cursor:picking?'pointer':'default',opacity:picking?1:.5}}>
+                  <div style={{width:tb?60:50,height:tb?60:50,borderRadius:14,overflow:'hidden',flexShrink:0}}>
+                    <img src={item.imgSrc} alt={item.label} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                  </div>
+                  <span style={{fontWeight:700,fontSize:tb?12:11,color:C.text,textAlign:'center',lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',width:'100%'}}>{item.label}</span>
+                  <span style={{fontSize:10,color:C.soft,background:`${C.coral}14`,borderRadius:6,padding:'1px 6px'}}>{item.cat}</span>
+                </button>
+              ))}
+            </div>
+          )
+        )}
+
         {(first||then)&&<button onClick={reset} style={{background:C.card,borderRadius:18,padding:tb?16:14,fontWeight:700,fontSize:tb?16:14,color:C.soft,border:`2px solid ${C.border}`}}>↺ Clear Board</button>}
         <div style={{height:8}}/>
       </div>
@@ -1044,19 +955,17 @@ function MiniWorld({onBack,onNav}){
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
       <Hdr title="🏠 Mini World" onBack={onBack} color={C.purple}/>
-      <div style={{background:`${C.purple}10`,padding:tb?'18px 28px':'16px 18px',borderBottom:`1px solid ${C.purple}18`,display:'flex',alignItems:'center',gap:16}}>
-        <span style={{fontSize:tb?62:50}}>🏡</span>
+      <div style={{background:`${C.purple}10`,padding:tb?'18px 28px':'16px 18px',borderBottom:`1px solid ${C.purple}16`,display:'flex',alignItems:'center',gap:16}}>
+        <span style={{fontSize:tb?60:50}}>🏡</span>
         <div>
           <p style={{fontWeight:900,fontSize:tb?22:18,color:C.text}}>The Home</p>
-          <p style={{fontSize:tb?14:12,color:C.soft,marginTop:3}}>Explore rooms · Learn object names · Build vocabulary</p>
+          <p style={{fontSize:tb?14:12,color:C.soft,marginTop:3}}>Explore rooms · Tap objects · Build vocabulary</p>
         </div>
       </div>
       <div style={{flex:1,overflowY:'auto',padding:tb?'18px 24px':14}}>
-        <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:12,letterSpacing:1.4,textTransform:'uppercase'}}>Choose a Room</p>
         <div style={{display:'grid',gridTemplateColumns:tb?'repeat(3,1fr)':'repeat(2,1fr)',gap:tb?16:12}}>
           {ROOMS.map((rm,i)=>(
-            <button key={rm.id} onClick={()=>onNav('room',rm)}
-              style={{background:`${rm.color}12`,borderRadius:24,padding:tb?'26px 16px':'20px 14px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?12:9,border:`2px solid ${rm.color}26`,cursor:'pointer',animation:`fadeIn .3s ease ${i*.07}s both`,boxShadow:`0 4px 14px ${rm.color}12`}}>
+            <button key={rm.id} onClick={()=>onNav('room',rm)} style={{background:`${rm.color}11`,borderRadius:24,padding:tb?'26px 16px':'20px 14px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?12:9,border:`2px solid ${rm.color}24`,cursor:'pointer',animation:`fadeIn .3s ease ${i*.07}s both`}}>
               <div style={{width:tb?70:58,height:tb?70:58,borderRadius:20,background:rm.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:tb?34:28}}>{rm.emoji}</div>
               <span style={{fontWeight:800,fontSize:tb?18:15,color:C.text}}>{rm.label}</span>
               <span style={{fontSize:tb?13:11,color:C.soft}}>{rm.items.length} objects</span>
@@ -1074,15 +983,14 @@ function Room({room,onBack}){
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
       <Hdr title={`${room.emoji} ${room.label}`} onBack={onBack} color={room.color}/>
-      <div style={{background:`${room.color}10`,padding:tb?'12px 24px':'10px 16px',borderBottom:`1px solid ${room.color}20`}}>
+      <div style={{background:`${room.color}10`,padding:tb?'12px 24px':'10px 16px',borderBottom:`1px solid ${room.color}18`}}>
         <p style={{fontSize:tb?15:12,color:C.soft,fontWeight:600}}>👆 Tap each object to hear its name</p>
       </div>
       <div style={{flex:1,overflowY:'auto',padding:tb?'18px 24px':14}}>
         <div style={{display:'grid',gridTemplateColumns:tb?'repeat(3,1fr)':'repeat(2,1fr)',gap:tb?16:12}}>
           {room.items.map((item,i)=>(
-            <button key={item.id} onClick={()=>tap(item)}
-              style={{background:active===item.id?`${room.color}20`:C.card,borderRadius:24,padding:tb?'28px 16px':'22px 14px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?12:10,border:`2.5px solid ${active===item.id?room.color:C.border}`,cursor:'pointer',transition:'all .2s',animation:`fadeIn .3s ease ${i*.06}s both`,transform:active===item.id?'scale(1.05)':'scale(1)',boxShadow:active===item.id?`0 6px 22px ${room.color}28`:`0 2px 8px rgba(0,0,0,.05)`}}>
-              <span style={{fontSize:tb?60:50}}>{item.emoji}</span>
+            <button key={item.id} onClick={()=>tap(item)} style={{background:active===item.id?`${room.color}18`:C.card,borderRadius:24,padding:tb?'28px 16px':'22px 14px',display:'flex',flexDirection:'column',alignItems:'center',gap:tb?12:10,border:`2.5px solid ${active===item.id?room.color:C.border}`,cursor:'pointer',transition:'all .2s',animation:`fadeIn .3s ease ${i*.06}s both`,transform:active===item.id?'scale(1.05)':'scale(1)',boxShadow:active===item.id?`0 6px 22px ${room.color}26`:`0 2px 8px rgba(0,0,0,.04)`}}>
+              <span style={{fontSize:tb?58:48}}>{item.emoji}</span>
               <span style={{fontWeight:800,fontSize:tb?20:16,color:active===item.id?room.color:C.text}}>{item.label}</span>
               {active===item.id&&<div style={{display:'flex',gap:5}}>{[0,1,2].map(j=><div key={j} style={{width:tb?8:6,height:tb?8:6,borderRadius:4,background:room.color,animation:`bounce .6s ease ${j*.12}s infinite`}}/>)}</div>}
             </button>
@@ -1114,28 +1022,24 @@ function DataNotes({role,onBack}){
   function tally(id){setCounts(c=>({...c,[id]:(c[id]||0)+1}));}
   function fmt(s){return`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
   function saveSession(){const s={id:Date.now(),time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),counts:{...counts},duration,notes,target};setSessions(p=>[s,...p]);setCounts({});setDuration(0);setRunning(false);setNotes('');}
-  const tabs=[{id:'frequency',label:'Frequency',emoji:'🔢'},{id:'duration',label:'Duration',emoji:'⏱️'},{id:'notes',label:'Notes',emoji:'📝'}];
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
-      <Hdr title="📊 Data Notes" onBack={onBack} color={C.blue}
-        right={<button onClick={saveSession} style={{background:C.blue,color:'white',borderRadius:14,padding:tb?'10px 18px':'8px 13px',fontWeight:700,fontSize:tb?15:13}}>Save Session</button>}/>
+      <Hdr title="📊 Data Notes" onBack={onBack} color={C.blue} right={<button onClick={saveSession} style={{background:C.blue,color:'white',borderRadius:14,padding:tb?'10px 18px':'8px 13px',fontWeight:700,fontSize:tb?15:13}}>Save Session</button>}/>
       <div style={{display:'flex',background:C.card,borderBottom:`1px solid ${C.border}`,padding:tb?'8px 24px':'8px 12px',gap:6}}>
-        {tabs.map(t=>(
+        {[{id:'frequency',label:'Frequency',emoji:'🔢'},{id:'duration',label:'Duration',emoji:'⏱️'},{id:'notes',label:'Notes',emoji:'📝'}].map(t=>(
           <button key={t.id} onClick={()=>setMode(t.id)} style={{flex:1,padding:tb?'10px 0':'8px 0',borderRadius:12,fontWeight:700,fontSize:tb?15:13,background:mode===t.id?C.blue:'transparent',color:mode===t.id?'white':C.soft,display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>{t.emoji} {t.label}</button>
         ))}
       </div>
       <div style={{flex:1,overflowY:'auto',padding:tb?'18px 24px':14,display:'flex',flexDirection:'column',gap:14}}>
         <div style={{display:'flex',gap:10,alignItems:'center'}}>
-          <span style={{fontSize:12,fontWeight:800,color:C.soft,letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap'}}>Target</span>
+          <span style={{fontSize:11,fontWeight:800,color:C.soft,letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap'}}>Target</span>
           <input value={target} onChange={e=>setTarget(e.target.value)} style={{flex:1,background:C.card,border:`1.5px solid ${C.border}`,borderRadius:12,padding:'9px 14px',fontSize:14,fontWeight:600,color:C.text,outline:'none'}}/>
         </div>
         {mode==='frequency'&&(
           <div>
-            <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:12,letterSpacing:1.4,textTransform:'uppercase'}}>Tap to Tally</p>
             <div style={{display:'grid',gridTemplateColumns:tb?'repeat(4,1fr)':'repeat(2,1fr)',gap:tb?12:10}}>
               {BEHAVIORS.map(b=>(
-                <button key={b.id} onClick={()=>tally(b.id)}
-                  style={{background:counts[b.id]?`${C.blue}12`:C.card,borderRadius:18,padding:tb?'16px 12px':'14px 10px',display:'flex',flexDirection:'column',alignItems:'center',gap:7,border:`2px solid ${counts[b.id]?C.blue:C.border}`,transition:'all .15s'}}>
+                <button key={b.id} onClick={()=>tally(b.id)} style={{background:counts[b.id]?`${C.blue}12`:C.card,borderRadius:18,padding:tb?'16px 12px':'14px 10px',display:'flex',flexDirection:'column',alignItems:'center',gap:7,border:`2px solid ${counts[b.id]?C.blue:C.border}`,transition:'all .15s'}}>
                   <span style={{fontSize:tb?30:26}}>{b.emoji}</span>
                   <span style={{fontWeight:700,fontSize:tb?14:12,color:C.text,textAlign:'center',lineHeight:1.2}}>{b.label}</span>
                   <div style={{background:counts[b.id]?C.blue:C.bg,color:counts[b.id]?'white':C.soft,borderRadius:20,padding:'2px 12px',fontWeight:900,fontSize:tb?18:16,minWidth:36,textAlign:'center'}}>{counts[b.id]||0}</div>
@@ -1147,7 +1051,7 @@ function DataNotes({role,onBack}){
         )}
         {mode==='duration'&&(
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,paddingTop:12}}>
-            <div style={{background:C.blueL,borderRadius:28,padding:tb?'40px 60px':'32px 44px',textAlign:'center',border:`2px solid ${C.blue}28`}}>
+            <div style={{background:C.blueL,borderRadius:28,padding:tb?'40px 60px':'32px 44px',textAlign:'center',border:`2px solid ${C.blue}26`}}>
               <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:8,letterSpacing:1,textTransform:'uppercase'}}>Elapsed Time</p>
               <p style={{fontSize:tb?72:56,fontWeight:900,color:C.blue,fontVariantNumeric:'tabular-nums'}}>{fmt(duration)}</p>
             </div>
@@ -1162,7 +1066,7 @@ function DataNotes({role,onBack}){
             <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Session notes, antecedents, consequences, observations..." style={{width:'100%',minHeight:tb?220:180,background:C.card,border:`1.5px solid ${C.border}`,borderRadius:16,padding:16,fontSize:tb?16:14,color:C.text,resize:'vertical',outline:'none',lineHeight:1.6}}/>
             <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
               {['Independent ✓','Prompted P','No Response NR','Incorrect ✗','Self-Correct SC'].map(t=>(
-                <button key={t} onClick={()=>setNotes(n=>n+(n?'\n':'')+t)} style={{background:C.blueL,borderRadius:10,padding:'7px 12px',fontWeight:700,fontSize:13,color:C.blue,border:`1.5px solid ${C.blue}22`}}>{t}</button>
+                <button key={t} onClick={()=>setNotes(n=>n+(n?'\n':'')+t)} style={{background:C.blueL,borderRadius:10,padding:'7px 12px',fontWeight:700,fontSize:13,color:C.blue,border:`1.5px solid ${C.blue}20`}}>{t}</button>
               ))}
             </div>
           </div>
@@ -1201,8 +1105,7 @@ function TimerTool({onBack}){
   const ref=useRef(null);
   useEffect(()=>{if(running&&tLeft>0){ref.current=setTimeout(()=>setTLeft(t=>t-1),1000);}else if(tLeft===0&&running){setRunning(false);speak('Time is up! Great job!');}return()=>clearTimeout(ref.current);},[running,tLeft]);
   function fmt(s){return`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
-  const pct=tLeft/tSec;
-  const R=tb?90:70;const circ=2*Math.PI*R;const sz=(R+20)*2;
+  const pct=tLeft/tSec;const R=tb?90:70;const circ=2*Math.PI*R;const sz=(R+20)*2;
   const PRESETS=[{label:'1 min',sec:60},{label:'2 min',sec:120},{label:'3 min',sec:180},{label:'5 min',sec:300},{label:'10 min',sec:600},{label:'15 min',sec:900},{label:'20 min',sec:1200},{label:'30 min',sec:1800}];
   const color=pct>.5?C.green:pct>.2?C.yellow:C.coral;
   return(
@@ -1212,7 +1115,7 @@ function TimerTool({onBack}){
         <input value={label} onChange={e=>setLabel(e.target.value)} style={{width:'100%',maxWidth:420,textAlign:'center',background:C.card,border:`2px solid ${C.border}`,borderRadius:16,padding:'11px 16px',fontSize:tb?18:16,fontWeight:800,color:C.text,outline:'none'}}/>
         <div style={{position:'relative',width:sz,height:sz}}>
           <svg width={sz} height={sz}>
-            <circle cx={sz/2} cy={sz/2} r={R} fill={`${color}10`} stroke={`${color}22`} strokeWidth={tb?18:14}/>
+            <circle cx={sz/2} cy={sz/2} r={R} fill={`${color}10`} stroke={`${color}20`} strokeWidth={tb?18:14}/>
             <circle cx={sz/2} cy={sz/2} r={R} fill="none" stroke={color} strokeWidth={tb?18:14} strokeDasharray={circ} strokeDashoffset={circ*(1-pct)} strokeLinecap="round" transform={`rotate(-90 ${sz/2} ${sz/2})`} style={{transition:'stroke-dashoffset 1s linear,stroke .5s ease'}}/>
           </svg>
           <div style={{position:'absolute',top:0,left:0,width:sz,height:sz,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4}}>
@@ -1225,16 +1128,13 @@ function TimerTool({onBack}){
           <button onClick={()=>{setTLeft(tSec);setRunning(false);}} style={{background:C.card,borderRadius:20,padding:tb?'16px 22px':'14px 18px',fontWeight:700,fontSize:tb?20:18,border:`2px solid ${C.border}`,color:C.soft}}>↺</button>
         </div>
         <div style={{width:'100%',maxWidth:560}}>
-          <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:12,letterSpacing:1.4,textTransform:'uppercase',textAlign:'center'}}>Quick Set</p>
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:tb?10:8}}>
             {PRESETS.map(p=>(
-              <button key={p.sec} onClick={()=>{setTSec(p.sec);setTLeft(p.sec);setRunning(false);}}
-                style={{background:tSec===p.sec?C.yellow:C.card,color:tSec===p.sec?'white':C.text,borderRadius:14,padding:tb?'12px 0':'10px 0',fontWeight:800,fontSize:tb?15:13,border:`2px solid ${tSec===p.sec?C.yellow:C.border}`,transition:'all .15s'}}>{p.label}</button>
+              <button key={p.sec} onClick={()=>{setTSec(p.sec);setTLeft(p.sec);setRunning(false);}} style={{background:tSec===p.sec?C.yellow:C.card,color:tSec===p.sec?'white':C.text,borderRadius:14,padding:tb?'12px 0':'10px 0',fontWeight:800,fontSize:tb?15:13,border:`2px solid ${tSec===p.sec?C.yellow:C.border}`,transition:'all .15s'}}>{p.label}</button>
             ))}
           </div>
         </div>
         <div style={{width:'100%',maxWidth:420,background:C.card,borderRadius:16,padding:16,border:`1px solid ${C.border}`}}>
-          <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:10,letterSpacing:1,textTransform:'uppercase'}}>Progress</p>
           <div style={{background:C.bg,borderRadius:10,height:tb?20:14,overflow:'hidden'}}>
             <div style={{width:`${pct*100}%`,height:'100%',background:color,borderRadius:10,transition:'width 1s linear,background .5s ease'}}/>
           </div>
@@ -1253,26 +1153,24 @@ function TimerTool({onBack}){
 function Goals({role,onBack}){
   const tb=useW()>=768;
   const [goals,setGoals]=useState([
-    {id:1,label:'Mand for 3 preferred items',cat:'Communication',progress:60,status:'active',notes:'Using PECS level 2'},
-    {id:2,label:'Identify 10 common objects',cat:'Receptive Language',progress:80,status:'active',notes:''},
-    {id:3,label:'Complete 3-step routine independently',cat:'Daily Living',progress:30,status:'active',notes:'Morning routine'},
-    {id:4,label:'Tact 5 body parts',cat:'Expressive Language',progress:100,status:'mastered',notes:'Mastered 3/10'},
+    {id:1,label:'Mand for 3 preferred items',cat:'Communication',progress:60,status:'active'},
+    {id:2,label:'Identify 10 common objects',cat:'Receptive Language',progress:80,status:'active'},
+    {id:3,label:'Complete 3-step routine independently',cat:'Daily Living',progress:30,status:'active'},
+    {id:4,label:'Tact 5 body parts',cat:'Expressive Language',progress:100,status:'mastered'},
   ]);
   const [adding,setAdding]=useState(false);
-  const [newLabel,setNewLabel]=useState('');
-  const [newCat,setNewCat]=useState('Communication');
+  const [newLabel,setNewLabel]=useState('');const [newCat,setNewCat]=useState('Communication');
   const GCATS=['Communication','Receptive Language','Expressive Language','Daily Living','Social Skills','Behavior','Motor Skills'];
   const statusColor={active:C.blue,mastered:C.green,paused:C.yellow,discontinued:C.coral};
-  function addGoal(){if(!newLabel.trim())return;setGoals(g=>[...g,{id:Date.now(),label:newLabel,cat:newCat,progress:0,status:'active',notes:''}]);setNewLabel('');setAdding(false);}
+  function addGoal(){if(!newLabel.trim())return;setGoals(g=>[...g,{id:Date.now(),label:newLabel,cat:newCat,progress:0,status:'active'}]);setNewLabel('');setAdding(false);}
   function updateProgress(id,v){setGoals(g=>g.map(x=>x.id===id?{...x,progress:Math.max(0,Math.min(100,v))}:x));}
   function cycleStatus(id){const order=['active','mastered','paused','discontinued'];setGoals(g=>g.map(x=>x.id===id?{...x,status:order[(order.indexOf(x.status)+1)%order.length]}:x));}
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
-      <Hdr title="🎯 Goals" onBack={onBack} color={C.pink}
-        right={<button onClick={()=>setAdding(a=>!a)} style={{background:adding?C.soft:C.pink,color:'white',borderRadius:14,padding:tb?'10px 18px':'8px 13px',fontWeight:700,fontSize:tb?15:13}}>{adding?'Cancel':'＋ Add'}</button>}/>
+      <Hdr title="🎯 Goals" onBack={onBack} color={C.pink} right={<button onClick={()=>setAdding(a=>!a)} style={{background:adding?C.soft:C.pink,color:'white',borderRadius:14,padding:tb?'10px 18px':'8px 13px',fontWeight:700,fontSize:tb?15:13}}>{adding?'Cancel':'＋ Add'}</button>}/>
       <div style={{flex:1,overflowY:'auto',padding:tb?'18px 24px':14,display:'flex',flexDirection:'column',gap:12}}>
         {adding&&(
-          <div style={{background:C.pinkL,borderRadius:20,padding:tb?20:16,border:`2px solid ${C.pink}28`,animation:'fadeIn .25s ease',display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{background:C.pinkL,borderRadius:20,padding:tb?20:16,border:`2px solid ${C.pink}26`,animation:'fadeIn .25s ease',display:'flex',flexDirection:'column',gap:12}}>
             <input value={newLabel} onChange={e=>setNewLabel(e.target.value)} placeholder="Describe the goal..." style={{background:C.card,border:`1.5px solid ${C.border}`,borderRadius:12,padding:'11px 14px',fontSize:tb?16:14,fontWeight:600,color:C.text,outline:'none',width:'100%'}}/>
             <select value={newCat} onChange={e=>setNewCat(e.target.value)} style={{background:C.card,border:`1.5px solid ${C.border}`,borderRadius:12,padding:'11px 14px',fontSize:tb?15:13,fontWeight:600,color:C.text,outline:'none'}}>
               {GCATS.map(c=><option key={c}>{c}</option>)}
@@ -1280,10 +1178,9 @@ function Goals({role,onBack}){
             <button onClick={addGoal} style={{background:C.pink,color:'white',borderRadius:14,padding:'13px 0',fontWeight:800,fontSize:tb?16:15}}>Add Goal ✓</button>
           </div>
         )}
-        {/* Summary stats */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10}}>
           {[{label:'Active',val:goals.filter(g=>g.status==='active').length,color:C.blue,light:C.blueL},{label:'Mastered',val:goals.filter(g=>g.status==='mastered').length,color:C.green,light:C.greenL}].map(s=>(
-            <div key={s.label} style={{background:s.light,borderRadius:16,padding:tb?'14px 18px':'12px 14px',border:`1.5px solid ${s.color}22`}}>
+            <div key={s.label} style={{background:s.light,borderRadius:16,padding:tb?'14px 18px':'12px 14px',border:`1.5px solid ${s.color}20`}}>
               <p style={{fontSize:tb?28:22,fontWeight:900,color:s.color}}>{s.val}</p>
               <p style={{fontSize:tb?13:11,color:C.soft,fontWeight:700,marginTop:2}}>{s.label} Goals</p>
             </div>
@@ -1294,16 +1191,15 @@ function Goals({role,onBack}){
             <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:10}}>
               <div style={{flex:1}}>
                 <p style={{fontWeight:800,fontSize:tb?17:15,color:C.text,marginBottom:4}}>{g.label}</p>
-                <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-                  <span style={{background:`${statusColor[g.status]}16`,color:statusColor[g.status],borderRadius:8,padding:'2px 9px',fontSize:12,fontWeight:700}}>{g.cat}</span>
-                  <button onClick={()=>cycleStatus(g.id)} style={{background:`${statusColor[g.status]}14`,color:statusColor[g.status],borderRadius:8,padding:'2px 9px',fontSize:12,fontWeight:700,textTransform:'capitalize'}}>{g.status}</button>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  <span style={{background:`${statusColor[g.status]}14`,color:statusColor[g.status],borderRadius:8,padding:'2px 9px',fontSize:12,fontWeight:700}}>{g.cat}</span>
+                  <button onClick={()=>cycleStatus(g.id)} style={{background:`${statusColor[g.status]}12`,color:statusColor[g.status],borderRadius:8,padding:'2px 9px',fontSize:12,fontWeight:700,textTransform:'capitalize'}}>{g.status}</button>
                 </div>
               </div>
               <span style={{fontSize:tb?22:18,fontWeight:900,color:g.progress===100?C.green:C.text,flexShrink:0}}>{g.progress}%</span>
             </div>
             <div>
-              <div style={{background:C.bg,borderRadius:10,height:tb?18:14,overflow:'hidden',cursor:'pointer'}}
-                onClick={e=>{const r=e.currentTarget.getBoundingClientRect();const p=Math.round((e.clientX-r.left)/r.width*100);updateProgress(g.id,p);}}>
+              <div style={{background:C.bg,borderRadius:10,height:tb?18:14,overflow:'hidden',cursor:'pointer'}} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();const p=Math.round((e.clientX-r.left)/r.width*100);updateProgress(g.id,p);}}>
                 <div style={{width:`${g.progress}%`,height:'100%',background:g.progress===100?C.green:statusColor[g.status]||C.blue,borderRadius:10,transition:'width .3s ease'}}/>
               </div>
               <p style={{fontSize:11,color:C.soft,marginTop:4,fontWeight:600}}>Tap bar to update progress</p>
@@ -1317,11 +1213,12 @@ function Goals({role,onBack}){
 }
 
 // ─── SETTINGS ─────────────────────────────────────────────────
-function Settings({role,onBack,onRoleChange}){
+function Settings({role,onBack,onRoleChange,uploads,onClearUploads}){
   const tb=useW()>=768;
   const [speechOn,setSpeechOn]=useState(true);
   const [speechRate,setSpeechRate]=useState(82);
   const [testWord,setTestWord]=useState('');
+  const [confirmClear,setConfirmClear]=useState(false);
   function testSpeech(){const u=new SpeechSynthesisUtterance(testWord||'Hello! The app is working!');if(_voice)u.voice=_voice;u.rate=speechRate/100;u.pitch=1;u.volume=1;window.speechSynthesis.cancel();if(speechOn)window.speechSynthesis.speak(u);}
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
@@ -1331,8 +1228,7 @@ function Settings({role,onBack,onRoleChange}){
           <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:12,letterSpacing:1.4,textTransform:'uppercase'}}>Current Role</p>
           <div style={{display:'grid',gridTemplateColumns:tb?'repeat(4,1fr)':'repeat(2,1fr)',gap:10}}>
             {ROLES.map(r=>(
-              <button key={r.id} onClick={()=>onRoleChange(r)}
-                style={{background:role.id===r.id?r.light:C.card,borderRadius:18,padding:tb?'16px 12px':'14px 10px',display:'flex',flexDirection:'column',alignItems:'center',gap:7,border:`2.5px solid ${role.id===r.id?r.color:C.border}`,transition:'all .2s'}}>
+              <button key={r.id} onClick={()=>onRoleChange(r)} style={{background:role.id===r.id?r.light:C.card,borderRadius:18,padding:tb?'16px 12px':'14px 10px',display:'flex',flexDirection:'column',alignItems:'center',gap:7,border:`2.5px solid ${role.id===r.id?r.color:C.border}`,transition:'all .2s'}}>
                 <span style={{fontSize:tb?32:28}}>{r.emoji}</span>
                 <span style={{fontWeight:800,fontSize:tb?16:14,color:role.id===r.id?r.color:C.text}}>{r.label}</span>
               </button>
@@ -1341,9 +1237,8 @@ function Settings({role,onBack,onRoleChange}){
         </div>
         <div style={{background:C.card,borderRadius:20,padding:tb?'20px 24px':'16px 18px',border:`1.5px solid ${C.border}`}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-            <p style={{fontWeight:800,fontSize:tb?17:15,color:C.text}}>🔊 Speech / Voice</p>
-            <button onClick={()=>setSpeechOn(s=>!s)}
-              style={{background:speechOn?C.green:C.border,borderRadius:20,width:52,height:28,position:'relative',transition:'background .2s',flexShrink:0}}>
+            <p style={{fontWeight:800,fontSize:tb?17:15,color:C.text}}>🔊 Speech</p>
+            <button onClick={()=>setSpeechOn(s=>!s)} style={{background:speechOn?C.green:C.border,borderRadius:20,width:52,height:28,position:'relative',transition:'background .2s',flexShrink:0}}>
               <div style={{width:22,height:22,borderRadius:11,background:'white',position:'absolute',top:3,left:speechOn?27:3,transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,.2)'}}/>
             </button>
           </div>
@@ -1361,15 +1256,26 @@ function Settings({role,onBack,onRoleChange}){
           )}
         </div>
         <div style={{background:C.card,borderRadius:20,padding:tb?'20px 24px':'16px 18px',border:`1.5px solid ${C.border}`}}>
+          <p style={{fontWeight:800,fontSize:tb?17:15,color:C.text,marginBottom:14}}>📷 Saved Photos</p>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:`1px solid ${C.border}`}}>
+            <div>
+              <p style={{fontSize:14,fontWeight:700,color:C.text}}>Photos saved on this device</p>
+              <p style={{fontSize:12,color:C.soft,marginTop:2}}>{uploads.length} photos stored in browser</p>
+            </div>
+            {!confirmClear?(
+              <button onClick={()=>setConfirmClear(true)} style={{background:'#FEECEC',color:'#E57373',borderRadius:12,padding:'8px 14px',fontWeight:700,fontSize:13,border:'1.5px solid #E5737320'}}>Clear All</button>
+            ):(
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>setConfirmClear(false)} style={{background:C.bg,borderRadius:12,padding:'8px 12px',fontWeight:700,fontSize:13,border:`1.5px solid ${C.border}`,color:C.soft}}>Cancel</button>
+                <button onClick={()=>{onClearUploads();setConfirmClear(false);}} style={{background:'#E57373',color:'white',borderRadius:12,padding:'8px 14px',fontWeight:700,fontSize:13}}>Yes, Clear</button>
+              </div>
+            )}
+          </div>
+          <p style={{fontSize:12,color:C.soft,marginTop:12,lineHeight:1.6}}>⚠️ Photos are saved to this browser only. Clearing browser data or switching devices will remove them. This app does not store any client data online.</p>
+        </div>
+        <div style={{background:C.card,borderRadius:20,padding:tb?'20px 24px':'16px 18px',border:`1.5px solid ${C.border}`}}>
           <p style={{fontWeight:800,fontSize:tb?17:15,color:C.text,marginBottom:14}}>📱 App Info</p>
-          {[
-            {label:'App Name',val:'Living Learning World'},
-            {label:'Version',val:'2.0.0'},
-            {label:'Categories',val:`${CATS.length} learning categories`},
-            {label:'Total Items',val:`${CATS.reduce((a,c)=>a+c.items.length,0)}+ vocabulary items`},
-            {label:'Platform',val:'Web · Tablet · Mobile'},
-            {label:'Data Storage',val:'Session only (local)'},
-          ].map(row=>(
+          {[{label:'Version',val:'3.0.0'},{label:'Categories',val:`${CATS.length} learning categories`},{label:'Vocabulary Items',val:`${CATS.reduce((a,c)=>a+c.items.length,0)}+`},{label:'Numbers',val:`1 – ${NUM_MAX}`},{label:'Data Storage',val:'This device only (no cloud)'},{label:'Client Data Stored',val:'None — therapist tool only'}].map(row=>(
             <div key={row.label} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:`1px solid ${C.border}`}}>
               <span style={{fontSize:tb?14:13,color:C.soft,fontWeight:600}}>{row.label}</span>
               <span style={{fontSize:tb?14:13,color:C.text,fontWeight:700}}>{row.val}</span>
@@ -1382,82 +1288,149 @@ function Settings({role,onBack,onRoleChange}){
   );
 }
 
-// ─── UPLOAD (CUSTOM CONTENT LIBRARY) ─────────────────────────
-function Upload({role,onBack}){
+// ─── MY CONTENT (UPLOAD) ─────────────────────────────────────
+// Photos are saved to localStorage and persist on this device
+// Two ways to add: Take Photo (camera) or Choose from Gallery
+function Upload({role,onBack,uploads,setUploads}){
   const [tab,setTab]=useState('photos');
   const tb=useW()>=768;
-  const fileRef=useRef(null);
-  const [items,setItems]=useState([]);
+  const galleryRef=useRef(null);
+  const cameraRef=useRef(null);
   const [editing,setEditing]=useState(null);
   const [editLabel,setEditLabel]=useState('');
   const [editCat,setEditCat]=useState('');
+  const [storageWarn,setStorageWarn]=useState(false);
+
   const CATTAGS=['Room','Item','Person','Activity','Food','Routine','Place','Other'];
   const tabs=[{id:'photos',label:'Photos',emoji:'📷'},{id:'people',label:'People',emoji:'👤'},{id:'routines',label:'Routines',emoji:'📋'}];
   const tabCatMap={photos:['Room','Item','Food','Place','Other'],people:['Person'],routines:['Activity','Routine']};
-  const visible=items.filter(it=>tabCatMap[tab]?.includes(it.cat));
+  const visible=uploads.filter(it=>tabCatMap[tab]?.includes(it.cat));
 
-  function openPicker(){fileRef.current&&fileRef.current.click();}
-  function onFileChange(e){
-    const files=Array.from(e.target.files);
-    if(!files.length)return;
-    files.forEach(file=>{
+  function processFile(file,defaultCat){
+    return new Promise(resolve=>{
+      // Compress image before saving to localStorage
       const reader=new FileReader();
       reader.onload=ev=>{
-        const defaultCat=tab==='people'?'Person':tab==='routines'?'Activity':'Item';
-        const ni={id:Date.now()+Math.random(),label:file.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' '),imgSrc:ev.target.result,cat:defaultCat,date:'Just now'};
-        setItems(p=>[ni,...p]);
-        setEditing(ni);setEditLabel(ni.label);setEditCat(ni.cat);
+        const img=new Image();
+        img.onload=()=>{
+          const canvas=document.createElement('canvas');
+          const MAX=600;
+          let w=img.width,h=img.height;
+          if(w>h&&w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+          else if(h>w&&h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+          else if(w>MAX){w=h=MAX;}
+          canvas.width=w;canvas.height=h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          const compressed=canvas.toDataURL('image/jpeg',0.7);
+          resolve({id:`${Date.now()}-${Math.random()}`,label:file.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' '),imgSrc:compressed,cat:defaultCat,date:new Date().toLocaleDateString()});
+        };
+        img.src=ev.target.result;
       };
       reader.readAsDataURL(file);
     });
+  }
+
+  async function onFilesChange(e,defaultCat){
+    const files=Array.from(e.target.files);
+    if(!files.length)return;
+    const newItems=await Promise.all(files.map(f=>processFile(f,defaultCat)));
+    const updated=[...newItems,...uploads];
+    try{
+      localStorage.setItem(LS_KEY,JSON.stringify(updated));
+      setUploads(updated);
+      if(newItems.length===1){setEditing(newItems[0]);setEditLabel(newItems[0].label);setEditCat(newItems[0].cat);}
+    }catch(err){
+      // localStorage full
+      setStorageWarn(true);
+      setUploads(prev=>[...newItems,...prev]);
+    }
     e.target.value='';
   }
-  function saveEdit(){setItems(p=>p.map(x=>x.id===editing.id?{...x,label:editLabel,cat:editCat}:x));setEditing(null);}
-  function deleteItem(){setItems(p=>p.filter(x=>x.id!==editing.id));setEditing(null);}
+
+  function saveEdit(){
+    const updated=uploads.map(x=>x.id===editing.id?{...x,label:editLabel,cat:editCat}:x);
+    setUploads(updated);
+    try{localStorage.setItem(LS_KEY,JSON.stringify(updated));}catch(e){}
+    setEditing(null);
+  }
+  function deleteItem(){
+    const updated=uploads.filter(x=>x.id!==editing.id);
+    setUploads(updated);
+    try{localStorage.setItem(LS_KEY,JSON.stringify(updated));}catch(e){}
+    setEditing(null);
+  }
+
+  const defaultCat=tab==='people'?'Person':tab==='routines'?'Activity':'Item';
 
   return(
     <div style={{height:'100vh',display:'flex',flexDirection:'column',position:'relative'}}>
       <Hdr title="📷 My Content" onBack={onBack} color={role.color}/>
-      <input ref={fileRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={onFileChange}/>
+
+      {/* Hidden file inputs */}
+      <input ref={galleryRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={e=>onFilesChange(e,defaultCat)}/>
+      <input ref={cameraRef}  type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>onFilesChange(e,defaultCat)}/>
+
       <div style={{display:'flex',background:C.card,borderBottom:`1px solid ${C.border}`,padding:tb?'10px 24px':'8px 14px',gap:8}}>
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:tb?'10px 0':'8px 0',borderRadius:14,fontWeight:700,fontSize:tb?15:13,background:tab===t.id?role.color:'transparent',color:tab===t.id?'white':C.soft,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>{tb&&t.emoji} {t.label}</button>
         ))}
       </div>
+
       <div style={{flex:1,overflowY:'auto',padding:tb?'20px 24px':14,display:'flex',flexDirection:tb?'row':'column',gap:tb?22:14,alignItems:'flex-start'}}>
+
         {/* Upload panel */}
-        <div style={{display:'flex',flexDirection:'column',gap:14,flexShrink:0,width:tb?300:'100%'}}>
-          <button onClick={openPicker} style={{background:role.light,borderRadius:24,padding:tb?28:20,border:`2.5px dashed ${role.color}55`,display:'flex',flexDirection:'column',alignItems:'center',gap:12,cursor:'pointer',width:'100%'}}>
-            <span style={{fontSize:tb?50:38}}>📤</span>
-            <span style={{fontWeight:900,fontSize:tb?18:15,color:role.color}}>Add {tab==='photos'?'Photo':tab==='people'?'Person':'Routine'}</span>
-            <p style={{fontSize:tb?13:12,color:C.soft,textAlign:'center',lineHeight:1.6}}>Tap to open your camera roll. You can select multiple photos at once.</p>
-            <div style={{background:role.color,color:'white',borderRadius:16,padding:tb?'11px 26px':'9px 20px',fontWeight:800,fontSize:tb?15:13}}>📷 Choose Photo</div>
+        <div style={{display:'flex',flexDirection:'column',gap:12,flexShrink:0,width:tb?300:'100%'}}>
+          {/* Take Photo button */}
+          <button onClick={()=>cameraRef.current&&cameraRef.current.click()} style={{background:role.color,borderRadius:20,padding:tb?'18px 16px':'14px 16px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',width:'100%',color:'white'}}>
+            <span style={{fontSize:tb?36:28}}>📸</span>
+            <div style={{textAlign:'left'}}>
+              <p style={{fontWeight:900,fontSize:tb?17:15}}>Take Photo</p>
+              <p style={{fontSize:tb?13:11,opacity:.85,marginTop:2}}>Opens camera directly</p>
+            </div>
           </button>
-          <div style={{background:C.yellowL,borderRadius:18,padding:'14px 16px',border:`1.5px solid ${C.yellow}38`,display:'flex',gap:10,alignItems:'flex-start'}}>
-            <span style={{fontSize:16,flexShrink:0}}>💡</span>
-            <p style={{fontSize:12,color:C.soft,lineHeight:1.5}}>After uploading, tap ✏️ to name it and tag it so it appears in the right tab.</p>
+
+          {/* Choose from Gallery button */}
+          <button onClick={()=>galleryRef.current&&galleryRef.current.click()} style={{background:role.light,borderRadius:20,padding:tb?'18px 16px':'14px 16px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',width:'100%',border:`2px dashed ${role.color}50`}}>
+            <span style={{fontSize:tb?36:28}}>🖼️</span>
+            <div style={{textAlign:'left'}}>
+              <p style={{fontWeight:900,fontSize:tb?17:15,color:role.color}}>Choose from Gallery</p>
+              <p style={{fontSize:tb?13:11,color:C.soft,marginTop:2}}>Select multiple photos</p>
+            </div>
+          </button>
+
+          {storageWarn&&(
+            <div style={{background:'#FEF9E7',borderRadius:14,padding:'12px 14px',border:`1.5px solid ${C.yellow}50`}}>
+              <p style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:3}}>⚠️ Storage nearly full</p>
+              <p style={{fontSize:12,color:C.soft,lineHeight:1.5}}>Delete some photos to free up space. Go to Settings → Clear All to start fresh.</p>
+            </div>
+          )}
+
+          <div style={{background:C.yellowL,borderRadius:16,padding:'13px 15px',border:`1.5px solid ${C.yellow}36`}}>
+            <p style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:4}}>💡 How to use custom photos</p>
+            <p style={{fontSize:12,color:C.soft,lineHeight:1.6}}>After uploading, tap ✏️ to name the photo and choose its category. Photos tagged as <strong>Activity, Routine, Place, or Person</strong> will appear in First/Then so you can build personalized boards with real, familiar images.</p>
           </div>
         </div>
+
         {/* Library */}
         <div style={{flex:1,width:'100%'}}>
-          <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:12,letterSpacing:1.4,textTransform:'uppercase'}}>{tab} Library · {visible.length} items</p>
+          <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:12,letterSpacing:1.4,textTransform:'uppercase'}}>{tab} Library · {visible.length} saved</p>
           {visible.length===0?(
             <div style={{background:C.card,borderRadius:18,padding:'32px 20px',textAlign:'center',border:`2px dashed ${C.border}`}}>
               <p style={{fontSize:32,marginBottom:10}}>📭</p>
               <p style={{fontWeight:700,fontSize:14,color:C.soft}}>No {tab} yet</p>
-              <p style={{fontSize:12,color:C.soft,marginTop:4}}>Tap "Choose Photo" to add your first one</p>
+              <p style={{fontSize:13,color:C.soft,marginTop:4}}>Tap "Take Photo" or "Choose from Gallery" to add your first one</p>
             </div>
           ):(
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {visible.map(it=>(
                 <div key={it.id} style={{background:C.card,borderRadius:18,padding:tb?'12px 16px':'10px 14px',display:'flex',alignItems:'center',gap:12,border:`1px solid ${C.border}`,animation:'fadeIn .3s ease'}}>
-                  <div style={{width:tb?58:50,height:tb?58:50,borderRadius:14,background:`${role.color}12`,overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    {it.imgSrc?<img src={it.imgSrc} alt={it.label} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:26}}>📸</span>}
+                  <div style={{width:tb?58:50,height:tb?58:50,borderRadius:14,overflow:'hidden',flexShrink:0,background:`${role.color}12`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    {it.imgSrc?<img src={it.imgSrc} alt={it.label} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:24}}>📸</span>}
                   </div>
                   <div style={{flex:1,minWidth:0}}>
                     <p style={{fontWeight:700,fontSize:tb?16:14,color:C.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{it.label}</p>
                     <div style={{display:'flex',gap:6,marginTop:3}}>
-                      <span style={{background:`${role.color}16`,color:role.color,borderRadius:8,padding:'2px 8px',fontSize:11,fontWeight:700}}>{it.cat}</span>
+                      <span style={{background:`${role.color}14`,color:role.color,borderRadius:8,padding:'2px 8px',fontSize:11,fontWeight:700}}>{it.cat}</span>
                       <span style={{fontSize:11,color:C.soft}}>{it.date}</span>
                     </div>
                   </div>
@@ -1468,25 +1441,23 @@ function Upload({role,onBack}){
           )}
         </div>
       </div>
+
       {/* Edit modal */}
       {editing&&(
         <div style={{position:'absolute',inset:0,background:'rgba(44,24,16,.45)',display:'flex',alignItems:'flex-end',zIndex:100}} onClick={e=>{if(e.target===e.currentTarget)setEditing(null);}}>
           <div style={{background:C.card,borderRadius:'24px 24px 0 0',padding:tb?'28px 32px':'22px 20px',width:'100%',display:'flex',flexDirection:'column',gap:16,animation:'slideUp .3s ease'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <p style={{fontWeight:900,fontSize:tb?20:18,color:C.text}}>Edit Item</p>
+              <p style={{fontWeight:900,fontSize:tb?20:18,color:C.text}}>Edit Photo</p>
               <button onClick={()=>setEditing(null)} style={{fontSize:22,color:C.soft,padding:'4px 8px'}}>✕</button>
             </div>
-            {editing.imgSrc&&(
-              <div style={{display:'flex',justifyContent:'center'}}>
-                <img src={editing.imgSrc} alt="" style={{width:tb?120:90,height:tb?120:90,borderRadius:18,objectFit:'cover',border:`2px solid ${C.border}`}}/>
-              </div>
-            )}
+            {editing.imgSrc&&<div style={{display:'flex',justifyContent:'center'}}><img src={editing.imgSrc} alt="" style={{width:tb?120:90,height:tb?120:90,borderRadius:18,objectFit:'cover',border:`2px solid ${C.border}`}}/></div>}
             <div>
               <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:7,letterSpacing:1,textTransform:'uppercase'}}>Label / Name</p>
-              <input value={editLabel} onChange={e=>setEditLabel(e.target.value)} placeholder="e.g. Living Room, Mom, Morning Routine" style={{width:'100%',background:C.bg,border:`2px solid ${role.color}48`,borderRadius:14,padding:'12px 16px',fontSize:tb?16:15,fontWeight:700,color:C.text,outline:'none'}}/>
+              <input value={editLabel} onChange={e=>setEditLabel(e.target.value)} placeholder="e.g. Session Room, Mom, Snack Time" style={{width:'100%',background:C.bg,border:`2px solid ${role.color}44`,borderRadius:14,padding:'12px 16px',fontSize:tb?16:15,fontWeight:700,color:C.text,outline:'none'}}/>
             </div>
             <div>
               <p style={{fontSize:11,fontWeight:800,color:C.soft,marginBottom:9,letterSpacing:1,textTransform:'uppercase'}}>Category Tag</p>
+              <p style={{fontSize:12,color:C.soft,marginBottom:8,lineHeight:1.5}}>Tag as <strong>Activity, Routine, Place, or Person</strong> to use this photo in First/Then boards</p>
               <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
                 {CATTAGS.map(ct=>(
                   <button key={ct} onClick={()=>setEditCat(ct)} style={{background:editCat===ct?role.color:C.bg,color:editCat===ct?'white':C.soft,borderRadius:12,padding:'9px 4px',fontWeight:700,fontSize:tb?13:12,border:`2px solid ${editCat===ct?role.color:C.border}`,transition:'all .15s'}}>{ct}</button>
@@ -1494,8 +1465,8 @@ function Upload({role,onBack}){
               </div>
             </div>
             <div style={{display:'flex',gap:10,marginTop:4}}>
-              <button onClick={deleteItem} style={{background:'#FEECEC',color:'#E57373',borderRadius:14,padding:'13px 0',fontWeight:700,fontSize:tb?15:14,flex:'0 0 80px',border:'1.5px solid #E5737328'}}>🗑️ Delete</button>
-              <button onClick={saveEdit} style={{flex:1,background:role.color,color:'white',borderRadius:14,padding:'13px 0',fontWeight:900,fontSize:tb?17:15}}>Save Changes ✓</button>
+              <button onClick={deleteItem} style={{background:'#FEECEC',color:'#E57373',borderRadius:14,padding:'13px 0',fontWeight:700,fontSize:tb?15:14,flex:'0 0 80px',border:'1.5px solid #E5737326'}}>🗑️ Delete</button>
+              <button onClick={saveEdit} style={{flex:1,background:role.color,color:'white',borderRadius:14,padding:'13px 0',fontWeight:900,fontSize:tb?17:15}}>Save ✓</button>
             </div>
           </div>
         </div>
@@ -1511,10 +1482,19 @@ function App(){
   const [vdata,setVdata]=useState(null);
   const [hist,setHist]=useState([]);
 
+  // Uploads live at the top level so all screens can access them
+  const [uploads,setUploads]=useState(()=>{
+    try{
+      const saved=localStorage.getItem(LS_KEY);
+      return saved?JSON.parse(saved):[];
+    }catch(e){return[];}
+  });
+
   function nav(v,d=null){setHist(h=>[...h,{view,data:vdata}]);setView(v);setVdata(d);}
   function back(){if(!hist.length)return;const p=hist[hist.length-1];setHist(h=>h.slice(0,-1));setView(p.view);setVdata(p.data);}
   function selectRole(r){setRole(r);setView('dash');}
   function changeRole(r){setRole(r);}
+  function clearUploads(){setUploads([]);try{localStorage.removeItem(LS_KEY);}catch(e){}}
 
   return(
     <div style={{height:'100vh',overflow:'hidden',background:C.bg}}>
@@ -1523,14 +1503,14 @@ function App(){
       {view==='learn'     &&<LearnMode onBack={back} onNav={nav}/>}
       {view==='lcat'      &&<LearnCat cat={vdata} onBack={back} onNav={nav}/>}
       {view==='lgame'     &&<LearnGame cat={vdata?.cat||vdata} items={vdata?.items} onBack={back}/>}
-      {view==='firstthen' &&<FirstThen onBack={back}/>}
+      {view==='firstthen' &&<FirstThen onBack={back} uploads={uploads}/>}
       {view==='miniworld' &&<MiniWorld onBack={back} onNav={nav}/>}
       {view==='room'      &&<Room room={vdata} onBack={back}/>}
-      {view==='upload'    &&<Upload role={role} onBack={back}/>}
+      {view==='upload'    &&<Upload role={role} onBack={back} uploads={uploads} setUploads={setUploads}/>}
       {view==='datanotes' &&<DataNotes role={role} onBack={back}/>}
       {view==='timer'     &&<TimerTool onBack={back}/>}
       {view==='goals'     &&<Goals role={role} onBack={back}/>}
-      {view==='settings'  &&<Settings role={role} onBack={back} onRoleChange={changeRole}/>}
+      {view==='settings'  &&<Settings role={role} onBack={back} onRoleChange={changeRole} uploads={uploads} onClearUploads={clearUploads}/>}
     </div>
   );
 }
