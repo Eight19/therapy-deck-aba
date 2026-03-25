@@ -14,4 +14,4 @@ working with children ages 2–10.
 - 📷 Custom content upload
 
 ## Live App
-👉 [Open the app](https://YOUR-USERNAME.github.io/living-learning-world-aba)
+👉 [Open the app](https://eight19.github.io/living-learning-world-aba)
