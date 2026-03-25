@@ -1,38 +1,17 @@
-name: Deploy to GitHub Pages
+# 🌍 Living Learning World
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+An ABA-powered learning app for RBTs, BCBAs, parents, and teachers 
+working with children ages 2–10.
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+## Features
+- 📖 Learn Mode — 11 categories with real photos, Grid & Flashcard views
+- 🎯 Game Mode — Tacting and Listener Responding
+- 📋 First / Then visual schedules with timer
+- 🏠 Mini World — explore rooms and learn object names
+- 📊 Data Notes — frequency, duration, and session notes
+- ⏱️ Timer — countdown with visual ring
+- 🎯 Goals tracker
+- 📷 Custom content upload
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
-jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+## Live App
+👉 [Open the app](https://YOUR-USERNAME.github.io/living-learning-world-aba)
