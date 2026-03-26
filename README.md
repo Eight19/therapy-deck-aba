@@ -7,7 +7,7 @@ key tags, laminated cards, visual schedules, and PECS boards —
 with a fast, personalized digital session toolkit.
 
 ## 🔗 Live App
-👉 [Open TherapyDeck](https://eight19.github.io/living-learning-world-aba)
+👉 [Open TherapyDeck](https://eight19.github.io/therapy-deck-aba/)
 
 ---
 
