@@ -13,9 +13,10 @@
    THERAPYDECK — v1.0
    Bold · Modern · Built for RBTs
    ═══════════════════════════════════ */
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
-html,body,#root{height:100%;overflow:hidden;}
-body{font-family:'Inter',sans-serif;background:#0F1117;color:#F0F0F0;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-overflow-scrolling:touch;}
+html{height:100%;height:-webkit-fill-available;}
+body{font-family:'Inter',sans-serif;background:#0F1117;color:#F0F0F0;height:100%;height:-webkit-fill-available;overflow:hidden;}
+#root{height:100vh;height:100dvh;overflow:hidden;}
 button{cursor:pointer;border:none;background:none;font-family:'Inter',sans-serif;}
 input,textarea,select{font-family:'Inter',sans-serif;}
 ::-webkit-scrollbar{width:4px;}
@@ -563,7 +564,7 @@ function Splash({onEnter}){
   const tb=useW()>=768;
   function go(){setGoing(true);setTimeout(()=>onEnter(),500);}
   return(
-    <div style={{height:'100vh',background:'linear-gradient(135deg,#0F1117 0%,#1A1040 50%,#0F1117 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:tb?'48px':'28px',gap:tb?40:28,position:'relative',overflow:'hidden'}}>
+    <div style={{height:'100dvh',background:'linear-gradient(135deg,#0F1117 0%,#1A1040 50%,#0F1117 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:tb?'48px':'28px',gap:tb?40:28,position:'relative',overflow:'hidden'}}>
       {/* Background glow */}
       <div style={{position:'absolute',top:'20%',left:'50%',transform:'translateX(-50%)',width:400,height:400,borderRadius:'50%',background:'radial-gradient(circle,rgba(99,102,241,.15) 0%,transparent 70%)',pointerEvents:'none'}}/>
 
@@ -624,7 +625,7 @@ function Dashboard({onNav,uploads}){
     {id:'timer',    label:'Timer',      icon:'⏱️',color:T.amber,   sub:'Session countdown'},
   ];
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column',background:T.bg}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column',background:T.bg}}>
       {/* Header */}
       <div style={{padding:tb?'20px 28px':'16px 20px',background:T.card,borderBottom:`1px solid ${T.border}`}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -721,7 +722,7 @@ function DTT({onBack,uploads}){
   const imgSz=tb?160:120;
 
   if(!catId) return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="🎴 DTT — Discrete Trials" onBack={onBack} color={T.indigo}/>
       <div style={{flex:1,overflowY:'auto',padding:tb?'20px 28px':14}}>
         <p style={{fontSize:12,color:T.muted,marginBottom:16,fontWeight:600}}>Choose a category to begin trials</p>
@@ -743,7 +744,7 @@ function DTT({onBack,uploads}){
   );
 
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title={`🎴 ${cat.label}`} onBack={()=>setCatId(null)} color={cat.color}
         right={
           <div style={{display:'flex',gap:8}}>
@@ -839,7 +840,7 @@ function ReceptiveID({onBack,uploads}){
     else{setRes('no');speak('Try again!');setTimeout(()=>{setSel(null);setRes(null);},800);}
   }
   if(!catId)return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="👂 Receptive ID" onBack={onBack} color={T.teal}/>
       <div style={{flex:1,overflowY:'auto',padding:tb?'20px 28px':14}}>
         <p style={{fontSize:12,color:T.muted,marginBottom:16,fontWeight:600}}>Choose a category</p>
@@ -857,7 +858,7 @@ function ReceptiveID({onBack,uploads}){
     </div>
   );
   if(over)return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:22,padding:32,background:T.bg}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:22,padding:32,background:T.bg}}>
       <span style={{fontSize:80,animation:'celebrate 1s ease'}}>🎉</span>
       <h2 style={{fontSize:32,fontWeight:900,color:T.text}}>Awesome!</h2>
       <div style={{background:T.card,borderRadius:20,padding:'28px 48px',textAlign:'center',border:`1px solid ${T.teal}40`}}>
@@ -872,7 +873,7 @@ function ReceptiveID({onBack,uploads}){
     </div>
   );
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title={`👂 Find the ___`} onBack={()=>setCatId(null)} color={T.teal} right={<span style={{fontWeight:800,fontSize:18,color:T.teal}}>{score}/{TOTAL}</span>}/>
       <div style={{padding:'8px 24px',background:T.card}}>
         <div style={{background:T.card2,borderRadius:6,height:8,overflow:'hidden'}}>
@@ -932,7 +933,7 @@ function Tacting({onBack}){
     else{setRes('no');speak('Try again!');setTimeout(()=>{setSel(null);setRes(null);},800);}
   }
   if(!catId)return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="🗣️ Tacting" onBack={onBack} color={T.rose}/>
       <div style={{flex:1,overflowY:'auto',padding:tb?'20px 28px':14}}>
         <p style={{fontSize:12,color:T.muted,marginBottom:16,fontWeight:600}}>Choose a category</p>
@@ -950,7 +951,7 @@ function Tacting({onBack}){
     </div>
   );
   if(over)return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:22,padding:32,background:T.bg}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:22,padding:32,background:T.bg}}>
       <span style={{fontSize:80,animation:'celebrate 1s ease'}}>🌟</span>
       <h2 style={{fontSize:32,fontWeight:900,color:T.text}}>Nice Tacting!</h2>
       <div style={{background:T.card,borderRadius:20,padding:'28px 48px',textAlign:'center',border:`1px solid ${T.rose}40`}}>
@@ -964,7 +965,7 @@ function Tacting({onBack}){
     </div>
   );
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="🗣️ What is this?" onBack={()=>setCatId(null)} color={T.rose} right={<span style={{fontWeight:800,fontSize:18,color:T.rose}}>{score}/{TOTAL}</span>}/>
       <div style={{padding:'8px 24px',background:T.card}}>
         <div style={{background:T.card2,borderRadius:6,height:8,overflow:'hidden'}}>
@@ -1021,7 +1022,7 @@ function Schedule({onBack,uploads}){
   const pct=tLeft/tSec;const R=tb?44:36;const circ=2*Math.PI*R;const sz=(R+18)*2;
 
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="📋 Visual Schedule" onBack={onBack} color={T.amber}
         right={<button onClick={()=>setShowTimer(s=>!s)} style={{background:showTimer?T.amber:`${T.amber}20`,borderRadius:10,padding:'8px 14px',fontWeight:700,fontSize:13,color:showTimer?T.bg:T.amber,border:`1px solid ${T.amber}40`}}>⏱️ Timer</button>}/>
       
@@ -1173,7 +1174,7 @@ function PECS({onBack,uploads}){
   }
 
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="🔄 PECS / Manding" onBack={onBack} color={T.purple}
         right={
           <div style={{display:'flex',gap:8}}>
@@ -1310,7 +1311,7 @@ function Imitation({onBack}){
   useEffect(()=>{speak(`${cur.instruction}: ${cur.label}`);},[idx,type]);
 
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="🪞 Imitation" onBack={onBack} color={T.sky}/>
       <div style={{display:'flex',background:T.card,borderBottom:`1px solid ${T.border}`,padding:'8px 16px',gap:8}}>
         {[{id:'motor',label:'Motor Imitation'},{id:'verbal',label:'Verbal Imitation'}].map(t=>(
@@ -1390,7 +1391,7 @@ function VITimer({onBack}){
   const color=pct<.7?T.green:pct<.9?T.amber:T.rose;
 
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="⏱️ VI Timer" onBack={onBack} color={T.green}/>
       <div style={{flex:1,overflowY:'auto',padding:tb?'24px 32px':16,display:'flex',flexDirection:'column',alignItems:'center',gap:tb?24:16}}>
 
@@ -1495,7 +1496,7 @@ function ChoiceBoard({onBack,uploads}){
   function addItem(item){if(!board.find(b=>b.id===item.id)&&board.length<12)setBoard(b=>[...b,item]);}
 
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="🎯 Choice Board" onBack={onBack} color={T.orange}
         right={
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -1562,7 +1563,7 @@ function ChoiceBoard({onBack,uploads}){
 function CardDecks({onBack,onNav}){
   const tb=useW()>=768;
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="🃏 Card Decks" onBack={onBack} color={T.teal}/>
       <div style={{flex:1,overflowY:'auto',padding:tb?'16px 24px':12}}>
         <p style={{fontSize:12,color:T.muted,marginBottom:14,fontWeight:600}}>Tap any category to view and use cards</p>
@@ -1671,7 +1672,7 @@ function Library({onBack}){
   ];
 
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="📚 Library" onBack={onBack} color={T.indigo}/>
       <div style={{display:'flex',background:T.card,borderBottom:`1px solid ${T.border}`,padding:'8px 16px',gap:6}}>
         {[{id:'videos',label:'📹 Videos'},{id:'music',label:'🎵 Music'},{id:'books',label:'📖 Books'}].map(t=>(
@@ -1823,7 +1824,7 @@ function TimerTool({onBack}){
   function fmt(s){return`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
   const PRESETS=[{l:'1m',s:60},{l:'2m',s:120},{l:'3m',s:180},{l:'5m',s:300},{l:'10m',s:600},{l:'15m',s:900},{l:'20m',s:1200},{l:'30m',s:1800}];
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column'}}>
       <Hdr title="⏱️ Timer" onBack={onBack} color={T.amber}/>
       <div style={{flex:1,overflowY:'auto',padding:tb?'28px 40px':16,display:'flex',flexDirection:'column',alignItems:'center',gap:tb?24:16}}>
         <input value={label} onChange={e=>setLabel(e.target.value)} style={{width:'100%',maxWidth:400,textAlign:'center',background:T.card,border:`1px solid ${T.border}`,borderRadius:14,padding:'12px 16px',fontSize:tb?18:16,fontWeight:700,color:T.text,outline:'none'}}/>
@@ -1878,11 +1879,25 @@ function MyPhotos({onBack,uploads,setUploads}){
     if(newItems.length===1){setEditing(newItems[0]);setEditLabel(newItems[0].label);setEditCat(newItems[0].cat);}
     e.target.value='';
   }
-  function saveEdit(){const upd=uploads.map(x=>x.id===editing.id?{...x,label:editLabel,cat:editCat}:x);setUploads(upd);try{localStorage.setItem(LS_PHOTOS,JSON.stringify(upd));}catch(e){}setEditing(null);}
-  function deleteItem(){const upd=uploads.filter(x=>x.id!==editing.id);setUploads(upd);try{localStorage.setItem(LS_PHOTOS,JSON.stringify(upd));}catch(e){}setEditing(null);}
+  function saveEdit(){
+    setUploads(current=>{
+      const upd=current.map(x=>x.id===editing.id?{...x,label:editLabel,cat:editCat}:x);
+      try{localStorage.setItem(LS_PHOTOS,JSON.stringify(upd));}catch(e){}
+      return upd;
+    });
+    setEditing(null);
+  }
+  function deleteItem(){
+    setUploads(current=>{
+      const upd=current.filter(x=>x.id!==editing.id);
+      try{localStorage.setItem(LS_PHOTOS,JSON.stringify(upd));}catch(e){}
+      return upd;
+    });
+    setEditing(null);
+  }
 
   return(
-    <div style={{height:'100vh',display:'flex',flexDirection:'column',position:'relative'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column',position:'relative'}}>
       <Hdr title="📷 My Photos" onBack={onBack} color={T.rose}/>
       <input ref={galleryRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={e=>onFilesChange(e,'Activity')}/>
       <input ref={cameraRef}  type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>onFilesChange(e,'Activity')}/>
@@ -1991,7 +2006,7 @@ function App(){
   const props={onBack:back,uploads,setUploads};
 
   return(
-    <div style={{height:'100vh',overflow:'hidden',background:T.bg,color:T.text}}>
+    <div style={{height:'100dvh',overflow:'hidden',background:T.bg,color:T.text}}>
       {view==='splash'     &&<Splash onEnter={()=>{setView('dash');}}/>}
       {view==='dash'       &&<Dashboard onNav={nav} uploads={uploads}/>}
       {view==='dtt'        &&<DTT {...props} onBack={back}/>}
